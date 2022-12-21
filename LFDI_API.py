@@ -85,7 +85,7 @@ if __name__ == "__main__":
         ki = 0
         kd = 0
     try: 
-        lfdi = LFDI_TCB("COM4", 9600)
+        lfdi = LFDI_TCB("COM3", 9600)
     except:
         print("Could not connect to LFDI_TCB")
         exit()
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     #Open the file
     file = open(file_name, "w")
     #Write the header
-    header = "Date\tTime\tChan\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\r"
+    header = "Date\tTime\tChan\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\r\n"
     file.write(header)
     file.close()
     print("Starting Data Collection")
@@ -122,7 +122,7 @@ if __name__ == "__main__":
 
         
         #Write the tsv data to the file
-        file.write(f"{raw_data}\r")
+        file.write(f"{raw_data}\r\n")
         #Close the file
         file.close()
         #Sleep for the sample rate
