@@ -5,7 +5,14 @@ from time import time
 from time import strftime
 import time
 
-
+def TCB_at_temp(temp, TCB, tolerance):
+    #Get the current temperature
+    current_temp = float(TCB.get_temperature())
+    #Check if the current temperature is within the tolerance of the set point
+    if (current_temp > (temp - tolerance)) and (current_temp < (temp + tolerance)):
+        return True
+    else:
+        return False
 
 class LFDI_TCB(object):
 
