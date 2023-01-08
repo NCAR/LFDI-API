@@ -25,6 +25,7 @@ class LFDI_TCB(object):
         self.ser.flushOutput()
         self.ser.timeout = 1
         self.ser.write_timeout = 1
+        self.header_format = "Date\tTime\tChan\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\r\n"
         self.send_command("c1")
         
     def __del__(self):
@@ -39,32 +40,105 @@ class LFDI_TCB(object):
         sleep(.5)
         return self.ser.read_all().decode('utf-8')
 
-    def get_temperature(self):
-        return self.send_command("raw")
-    
-    def set_temperature(self, temperature):
+
+    #Set the DAC output voltage Peak2Peak
+    def set_DAC(self,DAC_Selection,voltage):
+        #Check to see if the number can be converted into a float between 0 and 20
+        try:
+            voltage = float(voltage)
+            if voltage > 20 or voltage < 0:
+                print("Voltage must be between 0 and 20")
+                return
+        except:
+            print("Voltage must be a number")
+            return
+        #Check to see if the number can be converted into an integer between 0 and 5
+        try:
+            DAC_Selection = int(DAC_Selection)
+            if DAC_Selection > 5 or DAC_Selection < 0:
+                print("DAC_Selection must be between 0 and 5")
+                return
+        except:
+            print("DAC_Selection must be an integer")
+            return
+
+        return self.send_command(f"v{DAC_Selection} {voltage}")
+
+
+    #Get the DAC output voltage Peak2Peak
+    def get_DAC(self,DAC_Selection):
+        #Check to see if the number can be converted into an integer between 0 and 5
+        try:
+            DAC_Selection = int(DAC_Selection)
+            if DAC_Selection > 5 or DAC_Selection < 0:
+                print("DAC_Selection must be between 0 and 5")
+                return
+        except:
+            print("DAC_Selection must be an integer")
+            return
+        return self.send_command(f"v{DAC_Selection}")
+   
+    #Enable the DAC output
+    def enable_DAC(self,DAC_Selection, enable):
+        #Check to see if the number can be converted into an integer between 0 and 5
+        try:
+            DAC_Selection = int(DAC_Selection)
+            if DAC_Selection > 5 or DAC_Selection < 0:
+                print("DAC_Selection must be between 0 and 5")
+                return
+        except:
+            print("DAC_Selection must be an integer")
+            return
+
+        if enable:
+            return self.send_command(f"e{DAC_Selection}")
+        else:
+            return self.send_command(f"d{DAC_Selection}")
+        
+    #Get the Average Temperature
+    def get_average_temperature(self):
+        data = self.parse_raw_data(self.read_raw_data())
+        return data[11]
+
+    #Get the Target Temperature
+    def get_target_temperature(self):
+        data = self.parse_raw_data(self.read_raw_data())
+        return data[12]
+
+    #Set the Target Temperature
+    def set_target_temperature(self, temperature):
         return self.send_command("t" + str(temperature))
 
     def get_help(self):
         return self.send_command("help")
-
+    
+    #Enable or Disable the Heater
     def set_enable(self, enable):
         if enable:
             return self.send_command("e")
         else:
             return self.send_command("d")
+    
+    #Set the PID Values
     def set_kp(self, kp):
         return self.send_command("p" + str(kp))
     def set_ki(self, ki):
         return self.send_command("i" + str(ki))
     def set_kd(self, kd):
         return self.send_command("d" + str(kd))
+    
+    #Set the I2C Address of the temp Sensor to use for the PID Loop
     def set_setI2C_Add(self, add):
         return self.send_command("a" + str(add))
+    
+    #Set the Frequency of the PWM Signal
     def set_frequency(self, frequency):
         return self.send_command("f" + str(frequency))
+    
+    #Request the Raw Data from the TCB
     def read_raw_data(self):
         return self.send_command("r")
+    
     #Parse the Raw Data. Data Comes in as a string that is tab seperated into 16 columns the Header is the first row
     def parse_raw_data(self, raw_data):
         raw_data = self.read_raw_data()
@@ -107,9 +181,9 @@ if __name__ == "__main__":
     #Open the file
     file = open(file_name, "w")
     #Write the header
-    header = "Date\tTime\tChan\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\r\n"
-    file.write(header)
+    file.write(lfdi.header_format)
     file.close()
+    #Print Information to the User
     print("Starting Data Collection")
     print("Press Ctrl+C to stop")
     print(lfdi.set_enable(True))

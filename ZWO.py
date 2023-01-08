@@ -46,6 +46,16 @@ class ZWO_Camera:
         self.set_timeout()
         self.camera.capture(filename=filename)
         return
+        
     def set_timeout(self):
         timeout = (self.camera.get_control_value(asi.ASI_EXPOSURE)[0] / 1000) * 2 + 500
         self.camera.default_timeout = timeout
+
+
+if __name__ == '__main__':
+    camera = ZWO_Camera()
+    camera.set_exposure(0.1)
+    camera.set_binning(1)
+    camera.set_image_type('RAW16')
+    camera.set_roi('max', 'max')
+    camera.capture('initalization_image.tiff')
