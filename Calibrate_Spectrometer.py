@@ -5,15 +5,27 @@ from PIL import Image
 import matplotlib
 import ZWO
 import datetime
+import os
 
 #This script will help the user with Calibrating the Spectrometer so that output and Scaling is known for Collection
 
 
 H_Alpha_Wavelength = 656.28
-deuterium_wavelength = 589.3
-Chloride_Wavelength = 546.07
+deuterium_wavelength = 656.11
+hydrogen_wavelength = 656.27
+
+#Make a Calibration folder
+def make_calibration_folder():
+    #Get the current date and time
+    now = datetime.datetime.now()
+    #Create a folder with the current date and time
+    folder = 'Calibration_' + now.strftime("%Y-%m-%d_%H-%M-%S")
+    #Create the folder
+    os.mkdir(folder)
+    return folder
+
 #Deuterium Lamp Calibration
-def Deuterium_Lamp_Calibration(camera = None):
+def Deuterium_Lamp_Calibration(camera = None, calibration_folder= None):
     print("Please ensure the Deuterium bulb is in the lamp.\r\nPress Enter when ready")
     input()
     
@@ -24,28 +36,38 @@ def Deuterium_Lamp_Calibration(camera = None):
     input()
     #Show the Spectrometer output
     show_spectrometer_output(camera)
+    if camera == None:
+        #open the Tiff image
+        pixel_value = find_peak_position('Test1.tif')
+    else:
+        pixel_value = find_peak_position('Calibration_Image.tif')
+        os.rename('Calibration_Image.tif', calibration_folder + '/Deuterium_Calibration_Image.tif')
+        
     
-    pixel_value = find_peak_position('Test1.tif')
-    print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {deuterium_wavelength} nm\r\nImage saved to deuterium_calibration.tiff")
+    print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {deuterium_wavelength} nm\r\nImage saved to {calibration_folder}/Deuterium_Calibration_Image.tif")
     return pixel_value
 
 
-def Chloride_Lamp_Calibration(camera = None):
-    print("Please ensure the Chloride bulb is in the lamp.\r\nPress Enter when ready")
+def Hydrogen_Lamp_Calibration(camera = None, calibration_folder= None):
+    print("Please ensure the hydrogen bulb is in the lamp.\r\nPress Enter when ready")
     input()
     print("Turn On the lamp and attempt to align the the emission line with the spectrometer slit.\r\nPress Enter when ready")
     input()
     print("A window will open with the spectrometer output. Please adjust the lamp ONLY until the emission line is captured.\r\nClose the Spectrometer window when ready\r\nPress Enter to continue")
-    #open a Windo with the spectrometer output from the ZWO Camera. The window should be updated every 2 seconds
-    #Show window with the spectrometer output
-    #save the last image from the ZWO Camera output
+    
+    input()
     #Show the Spectrometer output
     show_spectrometer_output(camera)
-    #open the Tiff image
-    pixel_value = find_peak_position('Test1.tif')
-    print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {Chloride_Wavelength} nm\r\nImage saved to Chloride_calibration.tiff")
+    if camera == None:
+        #open the Tiff image
+        pixel_value = find_peak_position('Test1.tif')
+    else:
+        pixel_value = find_peak_position('Calibration_Image.tif')
+        os.rename('Calibration_Image.tif', calibration_folder + '/Hydrogen_Calibration_Image.tif')
+        
+    
+    print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {hydrogen_wavelength} nm\r\nImage saved to {calibration_folder}/Hydrogen_Calibration_Image.tif")
     return pixel_value
-
     
     
 
@@ -66,8 +88,10 @@ def find_peak_position(filename):
 def show_spectrometer_output(camera = None):
     plt.ion()
     fig = plt.figure()
-    ax, ax2 = fig.add_subplot(2,1,1), fig.add_subplot(2,1,2)
+    #Create 2 Subplots in the figure with a 
+    ax, ax2 = fig.add_subplot(1,1,1), fig.add_subplot(1,2,2)
     ax.set_title('Spectrometer Output')
+
     ax.set_xlabel('Pixel X')
     ax.set_ylabel('Pixel Y')
     #Try to connect to the camera
@@ -101,8 +125,9 @@ def show_spectrometer_output(camera = None):
         #plot the peak intensity in the Cross section
         ax2.axvline(np.argmax(crosssection), color='r')
         #Make axis 1 and axis 2 share the same x axis
-        ax2.get_shared_x_axes().join(ax, ax2)
+        #ax2.get_shared_x_axes().join(ax, ax2)
         ax2.set_title('Cross Section')
+        ax.set_title('Spectrometer Output')
         ax2.set_xlabel('Pixel X')
         ax2.set_ylabel('Intensity')
         #makesure the canvas is cleared
@@ -110,11 +135,12 @@ def show_spectrometer_output(camera = None):
 
         fig.canvas.draw()
         fig.canvas.flush_events()
-        time.sleep(2)
+        time.sleep(0.5)
         #Exit the loop if the user closes the plot
         if not plt.fignum_exists(fig.number):
             break
-    return
+        
+    return 
 
 
 
@@ -124,11 +150,16 @@ def show_spectrometer_output(camera = None):
 
 
 if __name__ == "__main__":
+    
+    
+    #Make a calibration folder
+    calibration_folder = make_calibration_folder()
     #the function to turn on interactive mode
+    
     print("Please remove any components between the spectrometer and the Lamp.\r\nPress Enter when ready")
     input()
     try: 
-        camera = ZWO.Camera()
+        camera = ZWO.ZWO_Camera()
         camera.set_exposure(0.1)
         camera.set_exposure(0.1)
         camera.set_binning(1)
@@ -138,19 +169,26 @@ if __name__ == "__main__":
         print("Error: Could not capture image from ZWO Camera. Please check that the camera is connected and the driver is installed")
         camera = None
     #Calibrate the spectrometer
-    d_pixel_Position = Deuterium_Lamp_Calibration(camera)
-    c_pixel_Position = Chloride_Lamp_Calibration(camera)
+    d_pixel_Position = Deuterium_Lamp_Calibration(camera, calibration_folder=calibration_folder)
+    h_pixel_Position = Hydrogen_Lamp_Calibration(camera, calibration_folder=calibration_folder)
 
     #Make a File With Calibration information
     #Open the file
     file = open('Calibration.txt', 'w')
     #Write the Calibration date
-    file.write(f"Calibration Date: {datetime.datetime.now()}\r\n")
+    file.write(f"Calibration Date: {datetime.datetime.now()}")
     #print the ZWO Camera Settings
-    file.write(f"ZWO Camera Settings:\r\n")
+    file.write(f"ZWO Camera Settings:")
+    if camera is not None:
+            #Need to implement a function to get the camera settings
+            file.write(f"{camera}")
     #Write the Calibration information to the file
-    file.write(f"Deuterium Wavelength: {deuterium_wavelength} nm\r\n")
-    file.write(f"Deuterium Pixel Position: {d_pixel_Position}\r\n")
-    file.write(f"Chloride Wavelength: {Chloride_Wavelength} nm\r\n")
-    file.write(f"Chloride Pixel Position: {c_pixel_Position}\r\n")
+    file.write(f"Deuterium Wavelength: {deuterium_wavelength} nm")
+    file.write(f"Deuterium Pixel Position: {d_pixel_Position}")
+    file.write(f"Hydrogen Wavelength: {hydrogen_wavelength} nm")
+    file.write(f"Hydrogen Pixel Position: {h_pixel_Position}")
+
     #Close the file
+    file.close()
+    #move the File to the Calibration Folder
+    os.rename('Calibration.txt', calibration_folder + '/Calibration.txt')

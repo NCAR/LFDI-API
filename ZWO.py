@@ -9,6 +9,7 @@ class ZWO_Camera:
         #Use the First and hopefully the only camera attached to the System
         self.camera = asi.Camera(0)
         self.camera_info = self.camera.get_camera_property()
+        self.binning = 1
     
     #Set Exposure in S
     def set_exposure(self, exposure):
@@ -16,6 +17,7 @@ class ZWO_Camera:
         self.camera.set_control_value(asi.ASI_EXPOSURE, exposure)
     
     def set_binning(self, binning):
+        self.binning = binning
         self.camera.set_roi(bins=binning)
 
 
@@ -50,12 +52,28 @@ class ZWO_Camera:
     def set_timeout(self):
         timeout = (self.camera.get_control_value(asi.ASI_EXPOSURE)[0] / 1000) * 2 + 500
         self.camera.default_timeout = timeout
+    
+    def get_camera_info(self):
+        return self.camera_info
+
+    def get_camera_width(self):
+        return self.camera.get_roi()[2]
+    def get_camera_height(self):
+        return self.camera.get_roi()[3]
+    def get_camera_image_type(self):
+        return self.camera.get_image_type()
+    def get_camera_exposure(self):
+        return self.camera.get_control_value(asi.ASI_EXPOSURE)[0] / 1000000
+    def __str__(self):
+        return 'Camera Info: ' + str(self.camera_info) + '\n' + 'Binning: '+ str(self.binning) +'\n' + 'Width: ' + str(self.get_camera_width()) + '\n' + 'Height: ' + str(self.get_camera_height()) + '\n' + 'Image Type: ' + str(self.get_camera_image_type()) + '\n' + 'Exposure: ' + str(self.get_camera_exposure()) + '\n'
 
 
 if __name__ == '__main__':
     camera = ZWO_Camera()
+    print(camera)
     camera.set_exposure(0.1)
-    camera.set_binning(1)
+    camera.set_binning(2)
     camera.set_image_type('RAW16')
-    camera.set_roi('max', 'max')
+    #camera.set_roi('max', 'max')
     camera.capture('initalization_image.tiff')
+    print(camera)
