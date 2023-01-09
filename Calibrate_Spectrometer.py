@@ -54,7 +54,6 @@ def Hydrogen_Lamp_Calibration(camera = None, calibration_folder= None):
     print("Turn On the lamp and attempt to align the the emission line with the spectrometer slit.\r\nPress Enter when ready")
     input()
     print("A window will open with the spectrometer output. Please adjust the lamp ONLY until the emission line is captured.\r\nClose the Spectrometer window when ready\r\nPress Enter to continue")
-    
     input()
     #Show the Spectrometer output
     show_spectrometer_output(camera)
@@ -88,8 +87,10 @@ def find_peak_position(filename):
 def show_spectrometer_output(camera = None):
     plt.ion()
     fig = plt.figure()
-    #Create 2 Subplots in the figure with a 
-    ax, ax2 = fig.add_subplot(1,1,1), fig.add_subplot(1,2,2)
+    #Create 2 Subplots in the figure with 1 row and 2 columns and white space inbetween
+    ax = fig.add_subplot(1, 2, 1)
+    ax2 = fig.add_subplot(1, 2, 2)
+
     ax.set_title('Spectrometer Output')
 
     ax.set_xlabel('Pixel X')
@@ -156,12 +157,19 @@ if __name__ == "__main__":
     calibration_folder = make_calibration_folder()
     #the function to turn on interactive mode
     
-    print("Please remove any components between the spectrometer and the Lamp.\r\nPress Enter when ready")
-    input()
+    print("Please remove any components between the spectrometer and the Lamp except for the Columnating Lense.\r\nPress Enter when ready")
+    #ask if user would like to use Auto Exposure
+    response = input("Would you like to use auto exposure for calibration, Once Exposure is set for the Deuterium Lamp it will be used for the Hydrogen Lamp. Press Enter to continue [y/n]")
+    if response.lower() == 'y':
+        auto_exposure = True
+    else:
+        auto_exposure = False
     try: 
         camera = ZWO.ZWO_Camera()
-        camera.set_exposure(0.1)
-        camera.set_exposure(0.1)
+        if auto_exposure:
+            camera.set_auto_exposure(True)
+        else:
+            camera.set_exposure(0.1)
         camera.set_binning(1)
         camera.set_image_type('RAW16')
         camera.set_roi('max', 'max')    
@@ -170,6 +178,12 @@ if __name__ == "__main__":
         camera = None
     #Calibrate the spectrometer
     d_pixel_Position = Deuterium_Lamp_Calibration(camera, calibration_folder=calibration_folder)
+    #Get the exposure of the camera
+    if camera is not None:
+        exposure = camera.get_camera_exposure()
+        print(f"Exposure Used for Deuterium Lamp: {exposure} seconds")
+        camera.set_auto_exposure(False)
+        camera.set_exposure(exposure)
     h_pixel_Position = Hydrogen_Lamp_Calibration(camera, calibration_folder=calibration_folder)
 
     #Make a File With Calibration information
