@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import time
+from functools import partial
 
 #This Class is to Control the Peripherials attached to the Spectrometer
 class Spectrometer:
@@ -136,7 +137,12 @@ class Spectrometer:
         self.camera.auto_exposure = enable
         return
 
-
+#A function that will return true 25 seconds after the entered time
+def end_trigger(time):
+    if time.time() > time + 25:
+        return True
+    else:
+        return False
 
 if __name__ == '__main__':
     spec = Spectrometer()
@@ -146,4 +152,5 @@ if __name__ == '__main__':
     print("Output With auto Exposure")
     spec.enable_auto_exposure(True)
     spec.single_output('Test1')
-    spec.continuous_output()
+    start = time.time()
+    spec.continuous_output(end_trigger=partial(end_trigger, start))

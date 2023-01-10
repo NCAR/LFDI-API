@@ -5,7 +5,7 @@ import time
 import Spectrograph
 import os
 import datetime
-
+from functiools import partial
 #Cycle through Temperatures and take an image at each temperature
 def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, tolerance, folder):
     #Create a list of temperatures to cycle through
@@ -18,7 +18,7 @@ def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, toleran
         LFDI_TCB.set_temperature(temperature)
         LFDI_TCB.set_enable(True)
         #Continuously output until we reach the set point
-        spectrometer.continuous_output(refresh_rate=0.5, end_trigger=lambda: TCB_at_temp(temperature, LFDI_TCB, tolerance))
+        spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(TCB_at_temp, temperature, LFDI_TCB, tolerance))
         #Rename the spectrometers current image, graph and Crosssection with the temperature and move them to the experiment folder
         os.rename(spectrometer.current_image, f"{folder}/{str(temperature)}C.tif")
         os.rename(spectrometer.current_graph, f"{folder}/{str(temperature)}C.png")
