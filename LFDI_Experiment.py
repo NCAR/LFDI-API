@@ -1,57 +1,79 @@
-from ZWO import ZWO_Camera
+
 import numpy as np
-import matplotlib.pyplot as plt
 import LFDI_API as LFDI
-from PIL import Image
 import time
-
-
-#Set the camera to use
-camera = ZWO_Camera()
-camera.set_exposure(0.1)
-camera.set_binning(1)
-camera.set_image_type('RAW16')
-camera.set_roi('max', 'max')
-camera.capture('test1.tiff')
-
-#Open the tiff image and find a horizontal cross section intensity profile
-def plot_image(filename, filename_1d=None):
-    image = Image.open(filename)
-    image = np.array(image)
-    #Get a 1d array from the values in the middle of the image
-    crosssection = image[int(image.shape[0]/2), :]
-    if filename_1d != None:
-        #save the numpy array as a tsv file
-        np.savetxt(filename_1d, crosssection, delimiter='\t')
-    #Make a plat with 2 subplots
-    fig, (ax1, ax2) = plt.subplots(1, 2)
-    #Plot the intensity profile on the left subplot
-    ax1.plot(crosssection)
-
-    #Show the image with a line where the cross section is
-    ax2.imshow(image)
-    ax2.axhline(y=int(image.shape[0]/2), color='y', linestyle='-')
-    return plt
-
+import Spectrograph
+import os
+import datetime
 
 #Cycle through Temperatures and take an image at each temperature
-def temperature_cycle(camera,LFDI_TCB, start_temp, end_temp, step, exposure, filename):
+def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, tolerance, folder):
     #Create a list of temperatures to cycle through
     temperatures = np.arange(start_temp, end_temp, step)
     #Create a list to store the filenames of the images
-    filenames = []
+    
     #Cycle through the temperatures
     for temperature in temperatures:
         #Set the temperature
         LFDI_TCB.set_temperature(temperature)
         LFDI_TCB.set_enable(True)
+        #Continuously output until we reach the set point
+        spectrometer.continuous_output(refresh_rate=0.5, end_trigger=lambda: TCB_at_temp(temperature, LFDI_TCB, tolerance))
+        #Rename the spectrometers current image, graph and Crosssection with the temperature and move them to the experiment folder
+        os.rename(spectrometer.current_image, f"{folder}/{str(temperature)}C.tif")
+        os.rename(spectrometer.current_graph, f"{folder}/{str(temperature)}C.png")
+        os.rename(spectrometer.current_crosssection, f"{folder}/{str(temperature)}C.csv")
+        print(f"Finished {temperature}C")
+    return
         
-        #Wait for the temperature to stabilize
-        time.sleep(10)
-        #Take the image
-        filename = filename + '_' + str(temperature) + '.tiff'
-        camera.capture(filename)
-        plot = plot_image(filename)
-        plot.show()
-        
-    return filenames
+#Check to see if the TCB temp is at the set point
+def TCB_at_temp(temp, TCB, tolerance):
+    #Get the current temperature
+    current_temp = float(TCB.get_average_temperature())
+    #Check if the current temperature is within the tolerance of the set point
+    if (current_temp > (temp - tolerance)) and (current_temp < (temp + tolerance)):
+        return True
+    else:
+        return False
+
+#Make an Experiment folder with date Time stamp
+def make_experiment_folder():
+    #Create the folder name
+    folder_name = 'Experiment_' + str(datetime.datetime.now())
+    #Create the folder
+    os.mkdir(folder_name)
+    #Return the folder name
+    return folder_name
+
+
+if __name__ == "__main__":
+    #Create the Spectrometer
+    try:
+        spectrometer = Spectrograph.Spectrometer()
+    except:
+        print("Could not connect to Spectrometer")
+        exit()
+    tolerance = .05
+    #Create the LFDI_TCB
+    try: 
+        lfdi = LFDI.LFDI_TCB("COM3", 9600)
+    except:
+        print("Could not connect to LFDI_TCB")
+        exit()
+    
+    
+    #ask the user if they want to sample for ambient temperature or enter it manually
+    response = input("Would you like to sample the ambient temperature? [y/n]")
+    if response.lower() == 'y':
+        #Sample the ambient temperature
+        ambient_temperature = lfdi.get_average_temperature()
+        print(f"Ambient Temperature: {str(ambient_temperature)}C")
+    else:
+        #Ask the user to enter the ambient temperature
+        ambient_temperature = float(input("Enter the ambient temperature [C]: "))
+    #Create folder
+    folder = make_experiment_folder()
+    #Cycle through the temperatures
+    temperature_cycle(spectrometer, lfdi, ambient_temperature, 30, 1, tolerance, folder)
+    #Close the LFDI_TCB
+    lfdi.close()
