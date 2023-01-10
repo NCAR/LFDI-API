@@ -4,3 +4,7 @@
 *.tiff
 ASI SDK/*
 ASI SDK/demo/demo2.exe
+*.csv
+*.png
+*.tif
+*.tif

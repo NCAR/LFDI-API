@@ -113,7 +113,7 @@ def show_spectrometer_output(camera = None):
         #Convert the image to a numpy array
         image = np.array(image)
         #Get a 1d array from the averaged values of the 10 rows around the Middle of the image This needs to bedone because a Corssection can go through a gap in the dots
-        crosssection = np.mean(image[int(image.shape[0]/2)-5:int(image.shape[0]/2)+5, :], axis=0)
+        crosssection = np.mean(image[int(image.shape[0]/2)-15:int(image.shape[0]/2)+15, :], axis=0)
         
         #clear axis 1
         ax.clear()
@@ -166,7 +166,7 @@ def plot_calibration_cross_sections(calibration_folder = None):
         for line in f:
             if line.startswith('Pixel Scaling'):
                 #Get the nm/px conversion
-                nm_per_px = float(line.split(' ')[1])
+                nm_per_px = float(line.split(' ')[2])
                 break
     #Set the X axis to be the wavelength in nm
     plt.xticks(np.arange(0, len(hydrogen_cross_section), 100), np.arange(0, len(hydrogen_cross_section)*nm_per_px, 100*nm_per_px))
@@ -213,10 +213,12 @@ if __name__ == "__main__":
     h_pixel_Position = Hydrogen_Lamp_Calibration(camera, calibration_folder=calibration_folder)
     #Get the exposure of the camera
     if camera is not None:
-        exposure = camera.get_camera_exposure()
-        print(f"Exposure Used for Hydrogen Lamp: {exposure} seconds")
-        camera.set_auto_exposure(False)
-        camera.set_exposure(exposure)
+        # #makes it so that the same exposure is used for both lamps however Hydrogen is much brighter
+        # exposure = camera.get_camera_exposure()
+        # print(f"Exposure Used for Hydrogen Lamp: {exposure} seconds")
+        # camera.set_auto_exposure(False)
+        #camera.set_exposure(exposure)
+        print("Continue")
     d_pixel_Position = Deuterium_Lamp_Calibration(camera, calibration_folder=calibration_folder)
 
     #Make a File With Calibration information
