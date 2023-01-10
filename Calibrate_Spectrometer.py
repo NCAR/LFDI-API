@@ -99,7 +99,7 @@ if __name__ == "__main__":
 
     #Calibrate the spectrometer
     for lamps in calibration_lamps:
-        calibration_routine(spectrometer, calibration_folder=calibration_folder, lamp=lamps)
+        calibration_routine(spectrometer, folder=calibration_folder, lamp=lamps)
     
     file = open('Calibration.txt', 'w')
     #Write the Calibration date
