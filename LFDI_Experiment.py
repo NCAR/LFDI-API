@@ -6,6 +6,8 @@ import Spectrograph
 import os
 import datetime
 from functools import partial
+
+
 #Cycle through Temperatures and take an image at each temperature
 def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, tolerance, folder):
     print(f"Start Temp {start_temp}")
@@ -22,13 +24,28 @@ def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, toleran
         LFDI_TCB.set_enable(True)
         #Continuously output until we reach the set point
         spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(TCB_at_temp, temperature, LFDI_TCB, tolerance))
+        #Wait For the Crystal to warm through out
+        now = time.time()
+        seconds_to_wait = 300 #wait for 5 minutes
+        spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(wait_time, now, seconds_to_wait))
+
         #Rename the spectrometers current image, graph and Crosssection with the temperature and move them to the experiment folder
         os.rename(spectrometer.current_image, f"{folder}/{str(temperature)}C.tif")
         os.rename(spectrometer.current_graph, f"{folder}/{str(temperature)}C.png")
         os.rename(spectrometer.current_crosssection, f"{folder}/{str(temperature)}C.csv")
         print(f"Finished {temperature}C")
     return
-        
+
+#wait for a certain time from the input time
+def wait_time(start, wait_time):
+    #Get the current time
+    current_time = time.time()
+    #Check if the current time is greater than the input time plus the wait time
+    if current_time > (start + wait_time):
+        return True
+    else:
+        return False
+
 #Check to see if the TCB temp is at the set point
 def TCB_at_temp(temp, TCB, tolerance):
     #Get the current temperature
@@ -75,7 +92,6 @@ def calibrate_LED(spectrometer, folder):
     
     return
 
-#TODO Make a routine to have the User Calibrate the LED
 if __name__ == "__main__":
     #Create the Spectrometer
     try:

@@ -6,10 +6,21 @@ import Spectrograph
 
 #This script will help the user with Calibrating the Spectrometer so that output and Scaling is known for Collection
 
+class lamp:
+    def __init__(self, name, wavelength):
+        self.name = name
+        self.wavelength = wavelength
+        self.pixel_value = None
+        return
+
 
 H_Alpha_Wavelength = 656.28
 deuterium_wavelength = 656.11
 hydrogen_wavelength = 656.27
+mercury_wavelength = 546.07
+
+#Set up the calibration lamps
+calibration_lamps = [lamp('Hydrogen', hydrogen_wavelength), lamp('Deuterium', deuterium_wavelength), lamp('Mercury', mercury_wavelength)]
 
 #Make a Calibration folder
 def make_calibration_folder():
@@ -21,41 +32,20 @@ def make_calibration_folder():
     os.mkdir(folder)
     return folder
 
-#Deuterium Lamp Calibration
-def Deuterium_Lamp_Calibration(spectrometer = None, calibration_folder= None):
-    input("Please ensure the Deuterium bulb is in the lamp.\r\nPress Enter when ready")
+
+def calibration_routine(spectrometer:Spectrograph.Spectrometer, folder, lamp:lamp):
+    input(f"Please ensure the {lamp.name} bulb is in the lamp.\r\nPress Enter when ready")
     input("Turn On the lamp and attempt to align the the emission line with the spectrometer slit.\r\nPress Enter when ready")
     input("A window will open with the spectrometer output. Please adjust the lamp and slit until the emission line is captured.\r\nClose the Spectrometer window when ready")
-    
-    #Show the Spectrometer output
+        #Show the Spectrometer output
     spectrometer.continuous_output()
     
-    pixel_value = spectrometer.get_peak_position(spectrometer.get_image_crosssection(spectrometer.current_image))
-    os.rename(spectrometer.current_image, calibration_folder + '/Deuterium_Calibration_Image.tif')
-    os.rename(spectrometer.current_graph, calibration_folder + '/Deuterium_Calibration_Graph.png')
-    os.rename(spectrometer.current_crosssection, calibration_folder + '/Deuterium_Calibration_CrossSection.csv')
-
-    print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {deuterium_wavelength} nm\r\nImage saved to {calibration_folder}/Deuterium_Calibration_Image.tif")
-    return pixel_value
-
-
-def Hydrogen_Lamp_Calibration(spectrometer = None, calibration_folder= None):
-    input("Please ensure the hydrogen bulb is in the lamp.\r\nPress Enter when ready")
-    input("Turn On the lamp and attempt to align the the emission line with the spectrometer slit.\r\nPress Enter when ready")
-    input("A window will open with the spectrometer output. Please adjust the lamp and the columnating lense ONLY until the emission line is captured.\r\nClose the Spectrometer window when ready")
+    lamp.pixel_value = spectrometer.get_peak_position(spectrometer.get_image_crosssection(spectrometer.current_image))
+    os.rename(spectrometer.current_image, f"{folder}/{lamp.name}_Calibration_Image.tif")
+    os.rename(spectrometer.current_graph, f"{folder}/{lamp.name}_Calibration_Graph.png")
+    os.rename(spectrometer.current_crosssection, f"{folder}/{lamp.name}_Calibration_CrossSection.csv")
     
-    #Show the Spectrometer output
-    spectrometer.continuous_output()
-    
-    pixel_value = spectrometer.get_peak_position(spectrometer.get_image_crosssection(spectrometer.current_image))
-    os.rename(spectrometer.current_image, calibration_folder + '/Hydrogen_Calibration_Image.tif')
-    os.rename(spectrometer.current_graph, calibration_folder + '/Hydrogen_Calibration_Graph.png')
-    os.rename(spectrometer.current_crosssection, calibration_folder + '/Hydrogen_Calibration_CrossSection.csv')
 
-    print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {hydrogen_wavelength} nm\r\nImage saved to {calibration_folder}/Hydrogen_Calibration_Image.tif")
-    return pixel_value
-    
-    
 
 #Plot the 2 calibration cross sections together
 def plot_calibration_cross_sections(calibration_folder = None):
@@ -88,8 +78,8 @@ def plot_calibration_cross_sections(calibration_folder = None):
 
 
 if __name__ == "__main__":
-    
-    
+    #Set up the calibration lamps
+    calibration_lamps = [lamp('Hydrogen', hydrogen_wavelength), lamp('Deuterium', deuterium_wavelength), lamp('Mercury', mercury_wavelength)]
     #Make a calibration folder
     calibration_folder = make_calibration_folder()
     #the function to turn on interactive mode
@@ -108,13 +98,9 @@ if __name__ == "__main__":
         spectrometer.camera.set_exposure(float(input()))
 
     #Calibrate the spectrometer
-    h_pixel_Position = Hydrogen_Lamp_Calibration(spectrometer, calibration_folder=calibration_folder)
-    #Get the exposure of the camera
-
-    d_pixel_Position = Deuterium_Lamp_Calibration(spectrometer, calibration_folder=calibration_folder)
-
-    #Make a File With Calibration information
-    #Open the file
+    for lamps in calibration_lamps:
+        calibration_routine(spectrometer, calibration_folder=calibration_folder, lamp=lamps)
+    
     file = open('Calibration.txt', 'w')
     #Write the Calibration date
     file.write(f"Calibration Date: {datetime.datetime.now()}")
@@ -122,12 +108,16 @@ if __name__ == "__main__":
     file.write(f"ZWO Camera Settings:")
     #Need to implement a function to get the camera settings
     file.write(f"{spectrometer.camera}")
+    #write the cross section position of the spectrometer
+    file.write(f"Spectrometer Cross Section Position: {spectrometer.crosssection_position}")
+    #write the cross section width
+    file.write(f"Spectrometer Cross Section Width averaged over: {spectrometer.crosssection_width}")
     #Write the Calibration information to the file
-    file.write(f"Deuterium Wavelength: {deuterium_wavelength} nm\n")
-    file.write(f"Deuterium Pixel Position: {d_pixel_Position}\n")
-    file.write(f"Hydrogen Wavelength: {hydrogen_wavelength} nm\n")
-    file.write(f"Hydrogen Pixel Position: {h_pixel_Position}\n")
-    file.write(f"Pixel Scaling: {(hydrogen_wavelength-deuterium_wavelength)/(h_pixel_Position-d_pixel_Position)} nm/px")
+    for lamps in calibration_lamps:
+        file.write(f"{lamps.name} Wavelength: {lamps.wavelength} nm")
+        file.write(f"{lamps.name} Pixel Position: {lamps.pixel_value}")
+            
+    file.write(f"Pixel Scaling: {(calibration_lamps[2].wavelength - calibration_lamps[0].wavelength)/(calibration_lamps[2].pixel_value - calibration_lamps[0].pixel_value)} nm/px")
     #Close the file
     file.close()
     #move the File to the Calibration Folder
