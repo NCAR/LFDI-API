@@ -46,6 +46,19 @@ def make_experiment_folder():
     return folder_name
 
 
+
+#TO-DO Need to make a new thread to poll the LFDI Raw Data and output to a TSV file
+def get_LFDI_data(LFDI_TCB, folder):
+    #Create a file to store the data
+    file = open(f"{folder}/LFDI_Data.tsv", 'w')
+    #Write the header
+    file.write(LFDI_TCB.get_raw_data_header())
+    #Get the data
+    data = LFDI_TCB.get_raw_data()
+    #Write the data
+    file.write(data)
+
+
 if __name__ == "__main__":
     #Create the Spectrometer
     try:
@@ -75,5 +88,4 @@ if __name__ == "__main__":
     folder = make_experiment_folder()
     #Cycle through the temperatures
     temperature_cycle(spectrometer, lfdi, ambient_temperature, 30, 1, tolerance, folder)
-    #Close the LFDI_TCB
-    lfdi.close()
+    
