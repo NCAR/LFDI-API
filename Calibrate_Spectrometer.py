@@ -159,7 +159,7 @@ if __name__ == "__main__":
     
     print("Please remove any components between the spectrometer and the Lamp except for the Columnating Lense.\r\nPress Enter when ready")
     #ask if user would like to use Auto Exposure
-    response = input("Would you like to use auto exposure for calibration, Once Exposure is set for the Deuterium Lamp it will be used for the Hydrogen Lamp. Press Enter to continue [y/n]")
+    response = input("Would you like to use auto exposure for calibration, Once Exposure is set for the Hydrogen Lamp it will be used for the Deuterium Lamp. Press Enter to continue [y/n]")
     if response.lower() == 'y':
         auto_exposure = True
     else:
@@ -177,14 +177,15 @@ if __name__ == "__main__":
         print("Error: Could not capture image from ZWO Camera. Please check that the camera is connected and the driver is installed")
         camera = None
     #Calibrate the spectrometer
-    d_pixel_Position = Deuterium_Lamp_Calibration(camera, calibration_folder=calibration_folder)
+    
+    h_pixel_Position = Hydrogen_Lamp_Calibration(camera, calibration_folder=calibration_folder)
     #Get the exposure of the camera
     if camera is not None:
         exposure = camera.get_camera_exposure()
-        print(f"Exposure Used for Deuterium Lamp: {exposure} seconds")
+        print(f"Exposure Used for Hydrogen Lamp: {exposure} seconds")
         camera.set_auto_exposure(False)
         camera.set_exposure(exposure)
-    h_pixel_Position = Hydrogen_Lamp_Calibration(camera, calibration_folder=calibration_folder)
+    d_pixel_Position = Deuterium_Lamp_Calibration(camera, calibration_folder=calibration_folder)
 
     #Make a File With Calibration information
     #Open the file
@@ -197,11 +198,11 @@ if __name__ == "__main__":
             #Need to implement a function to get the camera settings
             file.write(f"{camera}")
     #Write the Calibration information to the file
-    file.write(f"Deuterium Wavelength: {deuterium_wavelength} nm")
-    file.write(f"Deuterium Pixel Position: {d_pixel_Position}")
-    file.write(f"Hydrogen Wavelength: {hydrogen_wavelength} nm")
-    file.write(f"Hydrogen Pixel Position: {h_pixel_Position}")
-
+    file.write(f"Deuterium Wavelength: {deuterium_wavelength} nm\n")
+    file.write(f"Deuterium Pixel Position: {d_pixel_Position}\n")
+    file.write(f"Hydrogen Wavelength: {hydrogen_wavelength} nm\n")
+    file.write(f"Hydrogen Pixel Position: {h_pixel_Position}\n")
+    file.write(f"Pixel Scaling: {(hydrogen_wavelength-deuterium_wavelength)/(h_pixel_Position-d_pixel_Position)} nm/px")
     #Close the file
     file.close()
     #move the File to the Calibration Folder

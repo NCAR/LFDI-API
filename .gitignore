@@ -1,4 +1,6 @@
 
 *.txt
 *.pyc
-*.tif
+*.tiff
+ASI SDK/*
+ASI SDK/demo/demo2.exe

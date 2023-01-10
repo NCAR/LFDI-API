@@ -5,11 +5,12 @@ import os
 class ZWO_Camera:
     def __init__(self):
         # Find the Library for the ZWO Camera
-        asi.init('C:\\Users\\mjeffers\\Downloads\\ASI_Windows_SDK_V1.27\\ASI SDK\\lib\\x64\\ASICamera2.dll')
+        asi.init('C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\ASI SDK\\lib\\x64\\ASICamera2.dll')
         #Use the First and hopefully the only camera attached to the System
         self.camera = asi.Camera(0)
         self.camera_info = self.camera.get_camera_property()
         self.binning = 1
+        self.auto_exposure = False
     
     #Set Exposure in S
     def set_exposure(self, exposure):
@@ -46,6 +47,7 @@ class ZWO_Camera:
 
     def capture(self, filename):
         self.set_timeout()
+        self.camera.set_control_value(asi.ASI_EXPOSURE, self.auto_exposure)
         self.camera.capture(filename=filename)
         return
         
@@ -67,13 +69,14 @@ class ZWO_Camera:
     def __str__(self):
         return 'Camera Info: ' + str(self.camera_info) + '\n' + 'Binning: '+ str(self.binning) +'\n' + 'Width: ' + str(self.get_camera_width()) + '\n' + 'Height: ' + str(self.get_camera_height()) + '\n' + 'Image Type: ' + str(self.get_camera_image_type()) + '\n' + 'Exposure: ' + str(self.get_camera_exposure()) + '\n'
     def set_auto_exposure(self, enable):
+        self.auto_exposure = enable
         self.camera.set_control_value(asi.ASI_EXPOSURE, enable)
 
 
 if __name__ == '__main__':
     camera = ZWO_Camera()
     print(camera)
-    camera.set_exposure(0.1)
+    camera.set_exposure(0.000032)
     camera.set_binning(2)
     camera.set_image_type('RAW16')
     #camera.set_roi('max', 'max')
