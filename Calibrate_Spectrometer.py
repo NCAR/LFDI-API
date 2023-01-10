@@ -42,7 +42,8 @@ def Deuterium_Lamp_Calibration(camera = None, calibration_folder= None):
     else:
         pixel_value = find_peak_position('Calibration_Image.tif')
         os.rename('Calibration_Image.tif', calibration_folder + '/Deuterium_Calibration_Image.tif')
-        
+        os.rename('Calibration_Graph.png', calibration_folder + '/Deuterium_Calibration_Graph.png')
+        os.rename('Calibration_CrossSection.csv', calibration_folder + '/Deuterium_Calibration_CrossSection.csv')
     
     print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {deuterium_wavelength} nm\r\nImage saved to {calibration_folder}/Deuterium_Calibration_Image.tif")
     return pixel_value
@@ -63,7 +64,8 @@ def Hydrogen_Lamp_Calibration(camera = None, calibration_folder= None):
     else:
         pixel_value = find_peak_position('Calibration_Image.tif')
         os.rename('Calibration_Image.tif', calibration_folder + '/Hydrogen_Calibration_Image.tif')
-        
+        os.rename('Calibration_Graph.png', calibration_folder + '/Hydrogen_Calibration_Graph.png')
+        os.rename('Calibration_CrossSection.csv', calibration_folder + '/Hydrogen_Calibration_CrossSection.csv')
     
     print(f"The peak position is {pixel_value} pixels from the left of the image which represents a wavelength of {hydrogen_wavelength} nm\r\nImage saved to {calibration_folder}/Hydrogen_Calibration_Image.tif")
     return pixel_value
@@ -110,8 +112,9 @@ def show_spectrometer_output(camera = None):
         image = Image.open(image_name)
         #Convert the image to a numpy array
         image = np.array(image)
-        #Get a 1d array from the values in the middle of the image
-        crosssection = image[int(image.shape[0]/2), :]
+        #Get a 1d array from the averaged values of the 10 rows around the Middle of the image This needs to bedone because a Corssection can go through a gap in the dots
+        crosssection = np.mean(image[int(image.shape[0]/2)-5:int(image.shape[0]/2)+5, :], axis=0)
+        
         #clear axis 1
         ax.clear()
         #clear axis 2
@@ -137,6 +140,10 @@ def show_spectrometer_output(camera = None):
         fig.canvas.draw()
         fig.canvas.flush_events()
         time.sleep(0.5)
+        #Save the Plot
+        fig.savefig('Calibration_Graph.png')
+        #Save the one dimensional cross section
+        np.savetxt('Calibration_CrossSection.csv', crosssection, delimiter=',')
         #Exit the loop if the user closes the plot
         if not plt.fignum_exists(fig.number):
             break
@@ -145,8 +152,33 @@ def show_spectrometer_output(camera = None):
 
 
 
+#Plot the 2 calibration cross sections together
+def plot_calibration_cross_sections(calibration_folder = None):
+    #open the 2 CSVs of the Calibration Cross sections
+    hydrogen_cross_section = np.genfromtxt(calibration_folder + '/Hydrogen_Calibration_CrossSection.csv', delimiter=',')
+    deuterium_cross_section = np.genfromtxt(calibration_folder + '/Deuterium_Calibration_CrossSection.csv', delimiter=',')
+    #Plot the 2 Cross sections
+    plt.plot(hydrogen_cross_section, label='Hydrogen')
+    plt.plot(deuterium_cross_section, label='Deuterium')
+    #Open the Calibration.txt file and get the nm/px conversion for the X axis
+    with open(calibration_folder + '/Calibration.txt', 'r') as f:
+        #Find the line that begins with Pixel Scaling
+        for line in f:
+            if line.startswith('Pixel Scaling'):
+                #Get the nm/px conversion
+                nm_per_px = float(line.split(' ')[1])
+                break
+    #Set the X axis to be the wavelength in nm
+    plt.xticks(np.arange(0, len(hydrogen_cross_section), 100), np.arange(0, len(hydrogen_cross_section)*nm_per_px, 100*nm_per_px))
+    plt.xlabel('Wavelength (nm)')
+    plt.ylabel('Intensity')
+    plt.title('Calibration of Hydrogen and Deuterium Emission Lines')
+    plt.legend()
+    plt.show()
+    #Save the plot to the Calibration Folder
+    plt.savefig(calibration_folder + '/Calibration_Graph.png')
+    return
 
-    
 
 
 
@@ -207,3 +239,5 @@ if __name__ == "__main__":
     file.close()
     #move the File to the Calibration Folder
     os.rename('Calibration.txt', calibration_folder + '/Calibration.txt')
+    #Plot the Calibration Cross Sections
+    plot_calibration_cross_sections(calibration_folder=calibration_folder)
