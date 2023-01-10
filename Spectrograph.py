@@ -107,6 +107,7 @@ class Spectrometer:
             if end_trigger is not None:
                 if end_trigger():
                     print("End Triggered")
+                    plt.close()
                     break
             if not plt.fignum_exists(fig.number):
                 print("Figure Closed")
@@ -138,8 +139,8 @@ class Spectrometer:
         return
 
 #A function that will return true 25 seconds after the entered time
-def end_trigger(time):
-    if time.time() > time + 25:
+def end_trigger(start):
+    if  time.time()> start + 25:
         return True
     else:
         return False

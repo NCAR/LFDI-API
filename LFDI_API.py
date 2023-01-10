@@ -90,12 +90,12 @@ class LFDI_TCB(object):
     #Get the Average Temperature
     def get_average_temperature(self):
         data = self.parse_raw_data(self.read_raw_data())
-        return data[11]
+        return data[9].strip('C')
 
     #Get the Target Temperature
     def get_target_temperature(self):
         data = self.parse_raw_data(self.read_raw_data())
-        return data[12]
+        return data[10].strip('C')
 
     #Set the Target Temperature
     def set_target_temperature(self, temperature):
