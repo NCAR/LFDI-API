@@ -62,7 +62,7 @@ class Spectrometer:
         return
 
 
-    def get_peak_position(crosssection):
+    def get_peak_position(self, crosssection):
         peak_position = np.argmax(crosssection)
         return peak_position
 
@@ -79,6 +79,7 @@ class Spectrometer:
         #While the user has the window open keep updating the image. The user should have the ability to increase or decrease the exposure time
         while True:
             if self.camera is not None:
+                image_name = self.current_image
                 self.take_image(self.current_image)
             else:
                 image_name = 'Test1.tif'
@@ -104,10 +105,12 @@ class Spectrometer:
             #Exit the loop if the user closes the plot or if lthe end trigger is met
             if end_trigger is not None:
                 if end_trigger():
+                    print("End Triggered")
                     break
             if not plt.fignum_exists(fig.number):
+                print("Figure Closed")
                 break
-            return
+        return
 
 
     #Get a Single Output and save the image, graph, and cross section
@@ -128,9 +131,19 @@ class Spectrometer:
         plt.show()
         return
 
+    #Enable auto exposure for the ZWO Camera
+    def enable_auto_exposure(self, enable):
+        self.camera.auto_exposure = enable
+        return
+
 
 
 if __name__ == '__main__':
     spec = Spectrometer()
+    print("Output With out auto Exposure")
+    spec.single_output('Test1')
+    spec.continuous_output()
+    print("Output With auto Exposure")
+    spec.enable_auto_exposure(True)
     spec.single_output('Test1')
     spec.continuous_output()
