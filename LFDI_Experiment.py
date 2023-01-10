@@ -63,6 +63,18 @@ def get_LFDI_data(LFDI_TCB, folder):
     #Write the data
     file.write(data)
 
+#Function that will guid user through the calibration process
+def calibrate_LED(spectrometer, folder):
+    print("Adjust the Intensity of the LED until the signal is no longer clipping\r\nClose the Graph when adjusted")
+    spectrometer.continuous_output()
+    #make a sub folder in the experiment folder to store the calibration images
+    os.mkdir(f"{folder}/LED Calibration")
+    os.rename(spectrometer.current_image, f"{folder}/LED Calibration/Calibration.tif")
+    os.rename(spectrometer.current_graph, f"{folder}/LED Calibration/Calibration.png")
+    os.rename(spectrometer.current_crosssection, f"{folder}/LED Calibration/Calibration.csv")
+    
+    return
+
 #TODO Make a routine to have the User Calibrate the LED
 if __name__ == "__main__":
     #Create the Spectrometer
@@ -83,9 +95,9 @@ if __name__ == "__main__":
         print("Could not connect to LFDI_TCB")
         exit()
     
-    
     #ask the user if they want to sample for ambient temperature or enter it manually
     response = input("Would you like to sample the ambient temperature? [y/n]")
+    
     if response.lower() == 'y':
         #Sample the ambient temperature
         ambient_temperature = lfdi.get_average_temperature()
@@ -93,10 +105,12 @@ if __name__ == "__main__":
     else:
         #Ask the user to enter the ambient temperature
         ambient_temperature = float(input("Enter the ambient temperature [C]: "))
-    print("Adjust the Intensity of the LED until the signal is no longer clipping\r\nClose the Graph when adjusted")
-    spectrometer.continuous_output()
+    
     #Create folder
     folder = make_experiment_folder()
+    calibrate_LED(spectrometer, folder)
+
+    
     #Cycle through the temperatures
     temperature_cycle(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance, folder)
     
