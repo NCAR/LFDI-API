@@ -67,9 +67,11 @@ class Scan:
         plt.plot(self.smoothed_data, label = 'Smoothed Data')
         plt.plot(self.maxima, self.smoothed_data[self.maxima], 'o', label = 'Maxima')
         plt.plot(self.minima, self.smoothed_data[self.minima], 'o', label = 'Minima')
+        #plot the fist local maxima with a red verical line
+        plt.axvline(x = self.first_local_maxima, color = 'r', label = 'First Local Maxima')
         if calibration_data is not None:
             #Create a Vertical Line with a label at the Hydrogen, deuterium and Mercury Position
-            plt.axvline(x = calibration_data.Hydrogen_Pixel_Position, color = 'r', label = 'Hydrogen')
+            plt.axvline(x = calibration_data.Hydrogen_Pixel_Position, color = 'y', label = 'Hydrogen')
             plt.axvline(x = calibration_data.Mercury_Pixel_Position, color = 'g', label = 'Mercury')
             plt.axvline(x = calibration_data.Deuterium_Pixel_Position, color = 'b', label = 'Deuterium')
 
@@ -102,16 +104,31 @@ def findMaxima(scans):
     return maxima
 
 #plot all the local maximas of the scans in the format nm offset vs the temperature
-def plotLocalMaximas(scans, calibration, save = False, save_path = None):
+def plotLocalMaximas(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None):
     plt.figure(figsize=(30.0, 10.0))
     for scan in scans:
         plt.plot(scan.temperature, scan.first_local_maxima, 'o')
     plt.xlabel('Temperature (C)')
-    plt.ylabel('First Maxima (nm)')
+    plt.ylabel('First Maxima (Pixel Position)')    
     plt.title('First Maxima vs Temperature')
     Furthest_Maxima = findMaxima(scans)
     #Convert the y axis to nm using Pixel Scaling and Pixel Offset with 2 decimal places
-    plt.yticks(np.arange(0, Furthest_Maxima, 1), np.around(np.arange(calibration.Pixel_Offset, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, calibration.Pixel_Scaling), 2))
+    if convert_to_nm:
+        plt.ylabel('First Maxima (nm)')
+        plt.yticks(np.arange(0, Furthest_Maxima, 1), np.around(np.arange(calibration.Pixel_Offset, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, calibration.Pixel_Scaling), 2))
+
+    if fit_a_line:
+        #Fit a line to the data
+        x = []
+        y = []
+        for scan in scans:
+            x.append(scan.temperature)
+            y.append(scan.first_local_maxima)
+        z = np.polyfit(x, y, 1)
+        p = np.poly1d(z)
+        plt.plot(x,p(x),"r--")
+        #display the equation of the line
+        plt.text(0.05, 0.95, 'y=%.6fx+(%.6f)'%(z[0],z[1]), ha='left', va='top', transform=plt.gca().transAxes)
 
     #only plot 10 ticks
     plt.locator_params(axis='y', nbins=10)
@@ -254,8 +271,8 @@ if __name__ == '__main__':
     l2_path = makeLevel2Folder(path)
     for file in files:
         scan = Scan(file)
-        scan.plot(calibration_data=calibration, convert_to_nm=True, save=True, save_path=l2_path)
+        scan.plot(calibration_data=calibration, convert_to_nm=False, save=True, save_path=l2_path)
         scans.append(scan)
         
-    plotLocalMaximas(scans, calibration, save=True, save_path=l2_path)
+    plotLocalMaximas(scans, calibration,convert_to_nm = False, fit_a_line = True, save=True, save_path=l2_path)
     print('Done')
