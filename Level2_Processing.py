@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 from scipy.signal import savgol_filter
+from PIL import Image
 #Smooth a 1D csv and plot it
 
 
@@ -158,6 +159,77 @@ def findHydrogenPixelPosition(filename):
     max_value_positions = np.where(data == max_value)
     return np.average(max_value_positions)
 
+#open the Bromine_Calibration_Image.tif and find the max value using the cross section through the middle of the image.
+#Plot the cross section and the max value
+def find_Max(calibration, filename):
+    image = Image.open(filename)
+    image = np.array(image)
+    #Find the cross section through the middle of the image
+    cross_section = image[int(len(image)/2)]
+    smoothed_data = savgol_filter(cross_section, 50, 3)
+    smoothed_data = savgol_filter(smoothed_data, 50, 3)
+    
+    #Find the max value in the cross section
+    max_value = np.max(smoothed_data)
+    #Find the pixel position of the max value
+    max_value_position = np.argmax(smoothed_data)
+    #Plot the cross section and the max value
+    plt.figure(figsize=(30.0, 10.0))
+    plt.plot(cross_section)
+    plt.plot(smoothed_data)
+    plt.plot(max_value_position, max_value, 'o')
+    plt.xlabel('Pixel Position')
+    #Print the pixel position of the max value on the graph with a label 
+    plt.text(max_value_position, max_value, 'Max Value Pixel Position: ' + str(max_value_position), ha='left', va='top')
+    plt.ylabel('Intensity')
+    plt.title('Bromine Calibration')
+    plt.show()
+    return max_value_position
+
+
+class element:
+    def __init__(self, name, wavelength, filename):
+        self.name = name
+        self.wavelength = wavelength
+        self.calibration_image = filename
+        self.pixel_position = self.open_tif_Calibration()
+        self.pixel_position, self.cross_section, self.smoothed_data = self.open_tif_Calibration()
+        
+        
+    def open_tif_Calibration(self, smoothing = True, display = True):
+        #open the tif calibration file
+        image = Image.open(f"{self.calibration_image}")
+        image = np.array(image)
+        plt.figure(figsize=(30.0, 10.0))
+        cross_section = image[int(len(image)/2)]
+        basis = cross_section
+        smoothed_data = None
+        if smoothing:
+            smoothed_data = savgol_filter(cross_section, 50, 3)
+            smoothed_data = savgol_filter(smoothed_data, 50, 3)
+            basis = smoothed_data
+            plt.plot(smoothed_data)
+        #Find the max value in the cross section
+        max_value = np.max(basis)
+        #Find the pixel position of the max value
+        max_value_position = np.argmax(smoothed_data)
+        #Plot the cross section and the max value
+        
+        plt.plot(cross_section)
+        
+        plt.plot(max_value_position, max_value, 'o')
+        plt.xlabel('Pixel Position')
+        #Print the pixel position of the max value on the graph with a label 
+        plt.text(max_value_position, max_value, 'Max Value Pixel Position: ' + str(max_value_position), ha='left', va='top')
+        plt.ylabel('Intensity')
+        plt.title(f'{self.name} Calibration')
+        if display:
+            plt.show()
+        return max_value_position, cross_section, smoothed_data
+    
+    def printElement(self):
+        print(f"{self.name} has a wavelength of {self.wavelength} nm and a pixel position of {self.pixel_position}.")
+
 #Calibration class to hold the calibration data
 #The calibration format 
 # Calibration Date: 2023-01-10 16:29:10.166252
@@ -179,18 +251,20 @@ def findHydrogenPixelPosition(filename):
 # Pixel Scaling: -1.7774193548387085 nm/px
 class Calibration:
     def __init__(self, filename):
-        self.filename = filename
+        self.filename = filename+"Calibration.txt"
         #open the file and read the data
-        with open(filename) as f:
+        with open(self.filename) as f:
             self.data = f.readlines()
+
+        
         self.Hydrogen_Wavelength = self.get_Hydrogen_Wavelength()
+        
         self.Hydrogen_Pixel_Position = self.get_Hydrogen_Pixel_Position()
         self.Deuterium_Wavelength = self.get_Deuterium_Wavelength
         self.Deuterium_Pixel_Position = self.get_Deuterium_Pixel_Position()
         self.Bromine_Wavelength = self.get_Bromine_Wavelength()
         self.Bromine_Pixel_Position = self.get_Bromine_Pixel_Position()
-        self.Pixel_Scaling = self.get_Pixel_Scaling()
-        self.Pixel_Offset = self.get_Pixel_Offset()
+        self.elements = [element('Hydrogen', self.Hydrogen_Wavelength, filename+'Hydrogen_Calibration_Image.tif'), element('Deuterium', self.Deuterium_Wavelength, filename+'Deuterium_Calibration_Image.tif'), element('Bromine', self.Bromine_Wavelength, filename+'Bromine_Calibration_Image.tif')]
         return
 
     def get_Hydrogen_Wavelength(self):
@@ -227,7 +301,16 @@ class Calibration:
         for line in self.data:
             if 'Deuterium Pixel Position' in line:
                 return int(line.split(' ')[3])
+    def recalc_peak_position_from_tif(self):
+        elements = ['Hydrogen', 'Deuterium', 'Bromine']
+        for element in elements:
+            #open the tif file
+            self.open_tif_Calibration(element)
 
+        #open the tif file
+        image = Image.open(filename)
+
+        
     def get_Pixel_Scaling(self):
         #Calculate the Pixel Scaling
         return (self.Bromine_Wavelength - self.Hydrogen_Wavelength) / (self.Bromine_Pixel_Position - self.Hydrogen_Pixel_Position)
@@ -259,8 +342,9 @@ def makeLevel2Folder(path):
 if __name__ == '__main__':
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\LFDI Temperature Sweep Trial Run\\"
     #Load in the calibration data
-    calibration = Calibration(f"{path}Calibration_2023-01-10_16-23-35\\Calibration.txt")
-    hydrogen_pixel_position = findHydrogenPixelPosition(f'{path}Calibration_2023-01-10_16-23-35\\Hydrogen_Calibration_CrossSection.csv')
+    calibration = Calibration(f"{path}Calibration_2023-01-11_18-33-13\\")
+    hydrogen_pixel_position = findHydrogenPixelPosition(f'{path}Calibration_2023-01-11_18-33-13\\Hydrogen_Calibration_CrossSection.csv')
+    findBromineMax(f'{path}Calibration_2023-01-11_18-33-13\\Bromine_Calibration_Image.tif')
     calibration.Hydrogen_Pixel_Position = hydrogen_pixel_position
     calibration.Pixel_Scaling = calibration.get_Pixel_Scaling()
     calibration.Pixel_Offset = calibration.get_Pixel_Offset()
