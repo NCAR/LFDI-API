@@ -61,18 +61,19 @@ class Scan:
         return mx, mn
 
     #plot the Scan data. If the calibration data is provided, plot the mercury and hydrogen position on the graph as well, if convert_to_nm is true, convert the x axis to nm
-    def plot(self, calibration_data = None,convert_to_nm = False, save = False, save_path = None):
+    def plot(self,plot_smoothed = True,calibration_data = None,convert_to_nm = False, save = False, save_path = None):
         plt.figure(figsize=(30.0, 10.0))
         plt.plot(self.data, label = 'Raw Data')
-        plt.plot(self.smoothed_data, label = 'Smoothed Data')
-        plt.plot(self.maxima, self.smoothed_data[self.maxima], 'o', label = 'Maxima')
-        plt.plot(self.minima, self.smoothed_data[self.minima], 'o', label = 'Minima')
-        #plot the fist local maxima with a red verical line
-        plt.axvline(x = self.first_local_maxima, color = 'r', label = 'First Local Maxima')
+        if plot_smoothed:
+            plt.plot(self.smoothed_data, label = 'Smoothed Data')
+            plt.plot(self.maxima, self.smoothed_data[self.maxima], 'o', label = 'Maxima')
+            plt.plot(self.minima, self.smoothed_data[self.minima], 'o', label = 'Minima')
+            #plot the fist local maxima with a red verical line
+            plt.axvline(x = self.first_local_maxima, color = 'r', label = 'First Local Maxima')
         if calibration_data is not None:
             #Create a Vertical Line with a label at the Hydrogen, deuterium and Mercury Position
             plt.axvline(x = calibration_data.Hydrogen_Pixel_Position, color = 'y', label = 'Hydrogen')
-            plt.axvline(x = calibration_data.Mercury_Pixel_Position, color = 'g', label = 'Mercury')
+            plt.axvline(x = calibration_data.Bromine_Pixel_Position, color = 'g', label = 'Bromine')
             plt.axvline(x = calibration_data.Deuterium_Pixel_Position, color = 'b', label = 'Deuterium')
 
         if convert_to_nm:
@@ -86,7 +87,12 @@ class Scan:
             
         else:
             plt.xlabel('Pixel Position')
+            #Xtick every 500 pixels
+            plt.xticks(np.arange(0, len(self.smoothed_data), 500))
+            #grid
+            plt.grid()
         plt.ylabel('Intensity')
+        plt.title('Scan at ' + str(self.temperature) + 'C')
         plt.legend()
         if save:
             #Save as full screen png
@@ -179,13 +185,12 @@ class Calibration:
             self.data = f.readlines()
         self.Hydrogen_Wavelength = self.get_Hydrogen_Wavelength()
         self.Hydrogen_Pixel_Position = self.get_Hydrogen_Pixel_Position()
-        self.Mercury_Wavelength =  578.2
-        self.Mercury_Pixel_Position = self.get_Mercury_Pixel_Position()
-        self.Deuterium_Wavelength = 656.1
+        self.Deuterium_Wavelength = self.get_Deuterium_Wavelength
         self.Deuterium_Pixel_Position = self.get_Deuterium_Pixel_Position()
+        self.Bromine_Wavelength = self.get_Bromine_Wavelength()
+        self.Bromine_Pixel_Position = self.get_Bromine_Pixel_Position()
         self.Pixel_Scaling = self.get_Pixel_Scaling()
         self.Pixel_Offset = self.get_Pixel_Offset()
-
         return
 
     def get_Hydrogen_Wavelength(self):
@@ -199,16 +204,16 @@ class Calibration:
         for line in self.data:
             if 'Hydrogen Pixel Position' in line:
                     return int(line.split(' ')[3])
-    
-    def get_Mercury_Wavelength(self):
-        #find the line that starts with Mercury Wavelength
+    def get_Bromine_Wavelength(self):
+        #find the line that starts with Bromine Wavelength
         for line in self.data:
-            if 'Mercury Wavelength' in line:
+            if 'Bromine Wavelength' in line:
                 return float(line.split(' ')[2])
-    def get_Mercury_Pixel_Position(self):
-        #find the line that starts with Mercury Pixel Position
+
+    def get_Bromine_Pixel_Position(self):
+        #find the line that starts with Bromine Pixel Position
         for line in self.data:
-            if 'Mercury Pixel Position' in line:
+            if 'Bromine Pixel Position' in line:
                 return int(line.split(' ')[3])
 
     def get_Deuterium_Wavelength(self):
@@ -225,11 +230,11 @@ class Calibration:
 
     def get_Pixel_Scaling(self):
         #Calculate the Pixel Scaling
-        return (self.Deuterium_Pixel_Position - self.Hydrogen_Pixel_Position) / (self.Deuterium_Wavelength - self.Hydrogen_Pixel_Position)
+        return (self.Bromine_Wavelength - self.Hydrogen_Wavelength) / (self.Bromine_Pixel_Position - self.Hydrogen_Pixel_Position)
 
     def get_Pixel_Offset(self):
         #Calculate the Pixel Offset
-        return self.Deuterium_Wavelength - self.Deuterium_Pixel_Position * self.Pixel_Scaling
+        return self.Hydrogen_Wavelength - self.Hydrogen_Pixel_Position * self.Pixel_Scaling
 
     def __str__(self):
         return "Hydrogen Wavelength: " + str(self.Hydrogen_Wavelength) + " nm\n" + "Hydrogen Pixel Position: " + str(self.Hydrogen_Pixel_Position) + "\n" + "Mercury Wavelength: " + str(self.Mercury_Wavelength) + " nm\n" + "Mercury Pixel Position: " + str(self.Mercury_Pixel_Position) + "\n" + "Deuterium Wavelength: " + str(self.Deuterium_Wavelength) + " nm\n" + "Deuterium Pixel Position: " + str(self.Deuterium_Pixel_Position) + "\n" + "Pixel Scaling: " + str(self.Pixel_Scaling) + " nm/px\n" + "Pixel Offset: " + str(self.Pixel_Offset) + " nm"
@@ -249,6 +254,8 @@ def makeLevel2Folder(path):
     os.mkdir(path + "Level2_" + dt_string)
     return path + "Level2_" + dt_string
 
+
+
 if __name__ == '__main__':
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\LFDI Temperature Sweep Trial Run\\"
     #Load in the calibration data
@@ -257,7 +264,6 @@ if __name__ == '__main__':
     calibration.Hydrogen_Pixel_Position = hydrogen_pixel_position
     calibration.Pixel_Scaling = calibration.get_Pixel_Scaling()
     calibration.Pixel_Offset = calibration.get_Pixel_Offset()
-
 
     print(calibration)
     scan_path = f"{path}Experiment_2023-01-10_16-39-59\\"
@@ -271,7 +277,7 @@ if __name__ == '__main__':
     l2_path = makeLevel2Folder(path)
     for file in files:
         scan = Scan(file)
-        scan.plot(calibration_data=calibration, convert_to_nm=False, save=True, save_path=l2_path)
+        scan.plot(plot_smoothed = False,  calibration_data=calibration, convert_to_nm=False, save=True, save_path=l2_path)
         scans.append(scan)
         
     plotLocalMaximas(scans, calibration,convert_to_nm = False, fit_a_line = True, save=True, save_path=l2_path)

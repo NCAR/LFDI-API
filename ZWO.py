@@ -67,7 +67,8 @@ class ZWO_Camera:
     def get_camera_exposure(self):
         return self.camera.get_control_value(asi.ASI_EXPOSURE)[0] / 1000000
     def __str__(self):
-        return 'Camera Info: ' + str(self.camera_info) + '\n' + 'Binning: '+ str(self.binning) +'\n' + 'Width: ' + str(self.get_camera_width()) + '\n' + 'Height: ' + str(self.get_camera_height()) + '\n' + 'Image Type: ' + str(self.get_camera_image_type()) + '\n' + 'Exposure: ' + str(self.get_camera_exposure()) + '\n'
+        return f"Camera Info: {str(self.camera_info)}\nBinning: {str(self.binning)}\nWidth: {str(self.get_camera_width())}\nHeight: {str(self.get_camera_height())}\n\
+            Image Type: {str(self.get_camera_image_type())}\nExposure: {str(self.get_camera_exposure())}\n"
     def set_auto_exposure(self, enable):
         self.auto_exposure = enable
         self.camera.set_control_value(asi.ASI_EXPOSURE, enable)

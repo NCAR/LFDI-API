@@ -17,10 +17,10 @@ class lamp:
 H_Alpha_Wavelength = 656.28
 deuterium_wavelength = 656.11
 hydrogen_wavelength = 656.27
-mercury_wavelength = 546.07
+bromine_wavelength = 656.0
 
 #Set up the calibration lamps
-calibration_lamps = [lamp('Hydrogen', hydrogen_wavelength), lamp('Deuterium', deuterium_wavelength), lamp('Mercury', mercury_wavelength)]
+calibration_lamps = [lamp('Hydrogen', hydrogen_wavelength), lamp('Deuterium', deuterium_wavelength), lamp('Bromine', bromine_wavelength)]
 
 #Make a Calibration folder
 def make_calibration_folder():
@@ -79,7 +79,7 @@ def plot_calibration_cross_sections(calibration_folder = None):
 
 if __name__ == "__main__":
     #Set up the calibration lamps
-    calibration_lamps = [lamp('Hydrogen', hydrogen_wavelength), lamp('Deuterium', deuterium_wavelength), lamp('Mercury', mercury_wavelength)]
+    calibration_lamps = [lamp('Hydrogen', hydrogen_wavelength), lamp('Deuterium', deuterium_wavelength), lamp('Bromine', bromine_wavelength)]
     #Make a calibration folder
     calibration_folder = make_calibration_folder()
     #the function to turn on interactive mode
@@ -103,21 +103,21 @@ if __name__ == "__main__":
     
     file = open('Calibration.txt', 'w')
     #Write the Calibration date
-    file.write(f"Calibration Date: {datetime.datetime.now()}")
+    file.write(f"Calibration Date: {datetime.datetime.now()}\r\n")
     #print the ZWO Camera Settings
-    file.write(f"ZWO Camera Settings:")
+    file.write(f"ZWO Camera Settings:\r\n")
     #Need to implement a function to get the camera settings
-    file.write(f"{spectrometer.camera}")
+    file.write(f"{spectrometer.camera}\r\n")
     #write the cross section position of the spectrometer
-    file.write(f"Spectrometer Cross Section Position: {spectrometer.crosssection_position}")
+    file.write(f"Spectrometer Cross Section Position: {spectrometer.crosssection_position}\r\n")
     #write the cross section width
-    file.write(f"Spectrometer Cross Section Width averaged over: {spectrometer.crosssection_width}")
+    file.write(f"Spectrometer Cross Section Width averaged over: {spectrometer.crosssection_width}\r\n")
     #Write the Calibration information to the file
     for lamps in calibration_lamps:
-        file.write(f"{lamps.name} Wavelength: {lamps.wavelength} nm")
-        file.write(f"{lamps.name} Pixel Position: {lamps.pixel_value}")
+        file.write(f"{lamps.name} Wavelength: {lamps.wavelength} nm\r\n")
+        file.write(f"{lamps.name} Pixel Position: {lamps.pixel_value}\r\n")
             
-    file.write(f"Pixel Scaling: {(calibration_lamps[2].wavelength - calibration_lamps[0].wavelength)/(calibration_lamps[2].pixel_value - calibration_lamps[0].pixel_value)} nm/px")
+    file.write(f"Pixel Scaling: {(calibration_lamps[2].wavelength - calibration_lamps[0].wavelength)/(calibration_lamps[2].pixel_value - calibration_lamps[0].pixel_value)} nm/px\r\n")
     #Close the file
     file.close()
     #move the File to the Calibration Folder
