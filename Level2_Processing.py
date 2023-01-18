@@ -8,7 +8,12 @@ from PIL import Image
 
 class Scan:
     def __init__(self, filename):
+        #File name will have the format "XX.XXXC_V.VV.csv"
+        self.temperature = float(filename[0:5])
+        self.voltage = float(filename[8:11])
+        print(f"Scan {self.temperature}C {self.voltage}V")
         self.filename = filename
+        
         self.data = np.loadtxt(filename, delimiter=',')
         self.smoothed_data = savgol_filter(self.data, 50, 3)
         self.smoothed_data = savgol_filter(self.smoothed_data, 50, 3)
@@ -20,7 +25,6 @@ class Scan:
         else:
             self.first_local_maxima = self.maxima[0]
         #Get the temperature from the filename by getting the filename without the extension and converting it to a float
-        self.temperature = float(filename[:-5])
         return
 
     def findLocalMaximaMinima(self, n, arr):
@@ -110,8 +114,34 @@ def findMaxima(scans):
             maxima = scan.first_local_maxima
     return maxima
 
+#plot local maximas vs Voltage
+def plotLocalMaximasVsVoltage(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None):
+    plt.figure(figsize=(30.0, 10.0))
+    for scan in scans:
+        plt.plot(scan.voltage, scan.first_local_maxima, 'o')
+    plt.xlabel('Voltage (V)')
+    plt.ylabel('First Maxima (Pixel Position)')    
+    plt.title('First Maxima vs Voltage')
+    Furthest_Maxima = findMaxima(scans)
+    #Convert the y axis to nm using Pixel Scaling and Pixel Offset with 2 decimal places
+    if convert_to_nm:
+        plt.ylabel('First Maxima (nm)')
+        plt.yticks(np.arange(0, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, 1), np.arange(0, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, 1).round(2))
+        plt.title('First Maxima vs Voltage (nm)')
+    if fit_a_line:
+        #fit a line to the data
+        z = np.polyfit(scans[0].voltage, scans[0].first_local_maxima, 1)
+        p = np.poly1d(z)
+        plt.plot(scans[0].voltage, p(scans[0].voltage), "r--", label = 'Fit')
+        plt.legend()
+    if save:
+        #Save as full screen png
+        plt.savefig(save_path+"\\" + 'LocalMaximasVsVoltage.png', bbox_inches='tight')
+    plt.show()
+    return
+
 #plot all the local maximas of the scans in the format nm offset vs the temperature
-def plotLocalMaximas(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None):
+def plotLocalMaximasVTemperature(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None):
     plt.figure(figsize=(30.0, 10.0))
     for scan in scans:
         plt.plot(scan.temperature, scan.first_local_maxima, 'o')
@@ -147,6 +177,67 @@ def plotLocalMaximas(scans, calibration, convert_to_nm = False,fit_a_line = Fals
     return
 
 
+#Plot for every Scan that has the same Temperature plot the local maximas vs Voltage
+#go through all the scans and find the ones with the same temperature and plot them and add a line of best fit
+def plotLocalMaximasVsVoltageSameTemperature(scans,fit_a_line = False, save = False, save_path = None):
+    plt.figure(figsize=(30.0, 10.0))
+    #go through all the scans and find the ones with the same temperature
+    for scan in scans:
+        #find the scans with the same temperature
+        same_temperature_scans = []
+        for scan2 in scans:
+            if scan.temperature == scan2.temperature:
+                same_temperature_scans.append(scan2)
+        #plot the local maximas vs voltage for the scans with the same temperature
+        for scan2 in same_temperature_scans:
+            plt.plot(scan2.voltage, scan2.first_local_maxima, 'o')
+        plt.xlabel('Voltage (V)')
+        plt.ylabel('First Maxima (Pixel Position)')    
+        plt.title('First Maxima vs Voltage at ' + str(scan.temperature) + 'C')
+        Furthest_Maxima = findMaxima(same_temperature_scans)
+
+        if fit_a_line:
+            #fit a line to the data
+            x = []
+            y = []
+            for scan2 in same_temperature_scans:
+                x.append(scan2.voltage)
+                y.append(scan2.first_local_maxima)
+            z = np.polyfit(x, y, 1)
+            p = np.poly1d(z)
+            plt.plot(x,p(x),"r--")
+            #display the equation of the line
+            plt.text(0.05, 0.95, 'y=%.6fx+(%.6f)'%(z[0],z[1]), ha='left', va='top', transform=plt.gca().transAxes)
+        #only plot 10 ticks
+        plt.locator_params(axis='y', nbins=10)
+        #add grid lines
+        plt.grid()
+        if save:
+            plt.savefig(save_path+"\\" + 'LocalMaximasVsVoltage' + str(scan.temperature) + '.png', bbox_inches='tight')
+        plt.show()
+
+
+
+
+#make a 3d plot of the first local maxima vs temperature and voltage
+def plot3DLocalMaximas(scans, save = False, save_path = None):
+    fig = plt.figure(figsize=(30.0, 10.0))
+    ax = fig.add_subplot(111, projection='3d')
+    x = []
+    y = []
+    z = []
+    for scan in scans:
+        x.append(scan.temperature)
+        y.append(scan.first_local_maxima)
+        z.append(scan.voltage)
+    ax.scatter(x, y, z)
+    ax.set_xlabel('Temperature (C)')
+    ax.set_ylabel('First Maxima (Pixel Position)')
+    ax.set_zlabel('Voltage (V)')
+    if save:
+        plt.savefig(save_path+"\\" + 'Voltage vs First Maxima vs Temperature.png', bbox_inches='tight')
+    plt.show()
+    return
 #open the Hydrogen Calibration csv and find the max value
 def findHydrogenMax(filename):
     data = np.loadtxt(filename, delimiter=',')
@@ -187,145 +278,6 @@ def find_Max(calibration, filename):
     return max_value_position
 
 
-class element:
-    def __init__(self, name, wavelength, filename):
-        self.name = name
-        self.wavelength = wavelength
-        self.calibration_image = filename
-        self.pixel_position = self.open_tif_Calibration()
-        self.pixel_position, self.cross_section, self.smoothed_data = self.open_tif_Calibration()
-        
-        
-    def open_tif_Calibration(self, smoothing = True, display = True):
-        #open the tif calibration file
-        image = Image.open(f"{self.calibration_image}")
-        image = np.array(image)
-        plt.figure(figsize=(30.0, 10.0))
-        cross_section = image[int(len(image)/2)]
-        basis = cross_section
-        smoothed_data = None
-        if smoothing:
-            smoothed_data = savgol_filter(cross_section, 50, 3)
-            smoothed_data = savgol_filter(smoothed_data, 50, 3)
-            basis = smoothed_data
-            plt.plot(smoothed_data)
-        #Find the max value in the cross section
-        max_value = np.max(basis)
-        #Find the pixel position of the max value
-        max_value_position = np.argmax(smoothed_data)
-        #Plot the cross section and the max value
-        
-        plt.plot(cross_section)
-        
-        plt.plot(max_value_position, max_value, 'o')
-        plt.xlabel('Pixel Position')
-        #Print the pixel position of the max value on the graph with a label 
-        plt.text(max_value_position, max_value, 'Max Value Pixel Position: ' + str(max_value_position), ha='left', va='top')
-        plt.ylabel('Intensity')
-        plt.title(f'{self.name} Calibration')
-        if display:
-            plt.show()
-        return max_value_position, cross_section, smoothed_data
-    
-    def printElement(self):
-        print(f"{self.name} has a wavelength of {self.wavelength} nm and a pixel position of {self.pixel_position}.")
-
-#Calibration class to hold the calibration data
-#The calibration format 
-# Calibration Date: 2023-01-10 16:29:10.166252
-# ZWO Camera Settings:
-# Camera Info: {'Name': 'ZWO ASI1600MM', 'CameraID': 0, 'MaxHeight': 3520, 'MaxWidth': 4656, 'IsColorCam': False, 'BayerPattern': 2, 'SupportedBins': [1, 2, 3, 4], 'SupportedVideoFormat': [0, 2], 'PixelSize': 3.8, 'MechanicalShutter': False, 'ST4Port': 1, 'IsCoolerCam': False, 'IsUSB3Host': False, 'IsUSB3Camera': True, 'ElecPerADU': 0.0049600000493228436, 'BitDepth': 12, 'IsTriggerCam': 0}
-# Binning: 1
-# Width: 4656
-# Height: 3520
-# Image Type: 2
-# Exposure: 3.2e-05
-# Spectrometer Cross Section Position: middle
-# Spectrometer Cross Section Width averaged over: 20
-# Hydrogen Wavelength: 656.27 nm
-# Hydrogen Pixel Position: 2122
-# Deuterium Wavelength: 656.11 nm
-# Deuterium Pixel Position: 2126
-# Mercury Wavelength: 546.07 nm
-# Mercury Pixel Position: 2184
-# Pixel Scaling: -1.7774193548387085 nm/px
-class Calibration:
-    def __init__(self, filename):
-        self.filename = filename+"Calibration.txt"
-        #open the file and read the data
-        with open(self.filename) as f:
-            self.data = f.readlines()
-
-        
-        self.Hydrogen_Wavelength = self.get_Hydrogen_Wavelength()
-        
-        self.Hydrogen_Pixel_Position = self.get_Hydrogen_Pixel_Position()
-        self.Deuterium_Wavelength = self.get_Deuterium_Wavelength
-        self.Deuterium_Pixel_Position = self.get_Deuterium_Pixel_Position()
-        self.Bromine_Wavelength = self.get_Bromine_Wavelength()
-        self.Bromine_Pixel_Position = self.get_Bromine_Pixel_Position()
-        self.elements = [element('Hydrogen', self.Hydrogen_Wavelength, filename+'Hydrogen_Calibration_Image.tif'), element('Deuterium', self.Deuterium_Wavelength, filename+'Deuterium_Calibration_Image.tif'), element('Bromine', self.Bromine_Wavelength, filename+'Bromine_Calibration_Image.tif')]
-        return
-
-    def get_Hydrogen_Wavelength(self):
-        for line in self.data:
-            #if the line contains the substring Hydrogen Wavelength, return the wavelength
-            if 'Hydrogen Wavelength' in line:
-                return float(line.split(' ')[2])
-
-    def get_Hydrogen_Pixel_Position(self):
-        #find the line that starts with Hydrogen Pixel Position
-        for line in self.data:
-            if 'Hydrogen Pixel Position' in line:
-                    return int(line.split(' ')[3])
-    def get_Bromine_Wavelength(self):
-        #find the line that starts with Bromine Wavelength
-        for line in self.data:
-            if 'Bromine Wavelength' in line:
-                return float(line.split(' ')[2])
-
-    def get_Bromine_Pixel_Position(self):
-        #find the line that starts with Bromine Pixel Position
-        for line in self.data:
-            if 'Bromine Pixel Position' in line:
-                return int(line.split(' ')[3])
-
-    def get_Deuterium_Wavelength(self):
-        #find the line that starts with Deuterium Wavelength
-        for line in self.data:
-            if 'Deuterium Wavelength' in line:
-                return float(line.split(' ')[2])
-
-    def get_Deuterium_Pixel_Position(self):
-        #find the line that starts with Deuterium Pixel Position
-        for line in self.data:
-            if 'Deuterium Pixel Position' in line:
-                return int(line.split(' ')[3])
-    def recalc_peak_position_from_tif(self):
-        elements = ['Hydrogen', 'Deuterium', 'Bromine']
-        for element in elements:
-            #open the tif file
-            self.open_tif_Calibration(element)
-
-        #open the tif file
-        image = Image.open(filename)
-
-        
-    def get_Pixel_Scaling(self):
-        #Calculate the Pixel Scaling
-        return (self.Bromine_Wavelength - self.Hydrogen_Wavelength) / (self.Bromine_Pixel_Position - self.Hydrogen_Pixel_Position)
-
-    def get_Pixel_Offset(self):
-        #Calculate the Pixel Offset
-        return self.Hydrogen_Wavelength - self.Hydrogen_Pixel_Position * self.Pixel_Scaling
-
-    def __str__(self):
-        return "Hydrogen Wavelength: " + str(self.Hydrogen_Wavelength) + " nm\n" + "Hydrogen Pixel Position: " + str(self.Hydrogen_Pixel_Position) + "\n" + "Mercury Wavelength: " + str(self.Mercury_Wavelength) + " nm\n" + "Mercury Pixel Position: " + str(self.Mercury_Pixel_Position) + "\n" + "Deuterium Wavelength: " + str(self.Deuterium_Wavelength) + " nm\n" + "Deuterium Pixel Position: " + str(self.Deuterium_Pixel_Position) + "\n" + "Pixel Scaling: " + str(self.Pixel_Scaling) + " nm/px\n" + "Pixel Offset: " + str(self.Pixel_Offset) + " nm"
-
-#Load in the Calibration file
-def loadCalibration(filename):
-    calibration = np.loadtxt(filename, delimiter=',')
-    return calibration
 
 #make a level 2 folder for the data
 def makeLevel2Folder(path):
@@ -340,17 +292,17 @@ def makeLevel2Folder(path):
 
 
 if __name__ == '__main__':
-    path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\LFDI Temperature Sweep Trial Run\\"
+    path = "C:\\Users\\mjeffers\\Desktop\\"
     #Load in the calibration data
-    calibration = Calibration(f"{path}Calibration_2023-01-11_18-33-13\\")
-    hydrogen_pixel_position = findHydrogenPixelPosition(f'{path}Calibration_2023-01-11_18-33-13\\Hydrogen_Calibration_CrossSection.csv')
-    findBromineMax(f'{path}Calibration_2023-01-11_18-33-13\\Bromine_Calibration_Image.tif')
-    calibration.Hydrogen_Pixel_Position = hydrogen_pixel_position
-    calibration.Pixel_Scaling = calibration.get_Pixel_Scaling()
-    calibration.Pixel_Offset = calibration.get_Pixel_Offset()
+    # calibration = Calibration(f"{path}Calibration_2023-01-11_18-33-13\\")
+    # hydrogen_pixel_position = findHydrogenPixelPosition(f'{path}Calibration_2023-01-11_18-33-13\\Hydrogen_Calibration_CrossSection.csv')
+    # findBromineMax(f'{path}Calibration_2023-01-11_18-33-13\\Bromine_Calibration_Image.tif')
+    # calibration.Hydrogen_Pixel_Position = hydrogen_pixel_position
+    # calibration.Pixel_Scaling = calibration.get_Pixel_Scaling()
+    # calibration.Pixel_Offset = calibration.get_Pixel_Offset()
 
-    print(calibration)
-    scan_path = f"{path}Experiment_2023-01-10_16-39-59\\"
+    # print(calibration)
+    scan_path = f"{path}Experiment_2023-01-17_14-04-09\\"
     #find all CSV files in the directory
     import glob
     import os
@@ -361,8 +313,12 @@ if __name__ == '__main__':
     l2_path = makeLevel2Folder(path)
     for file in files:
         scan = Scan(file)
-        scan.plot(plot_smoothed = False,  calibration_data=calibration, convert_to_nm=False, save=True, save_path=l2_path)
+        # scan.plot(plot_smoothed = False, convert_to_nm=False, save=True, save_path=l2_path)
         scans.append(scan)
         
-    plotLocalMaximas(scans, calibration,convert_to_nm = False, fit_a_line = True, save=True, save_path=l2_path)
+    #3d plot
+    plot3DLocalMaximas(scans, save=True, save_path=l2_path)
+    #2d plot
+    plotLocalMaximasVsVoltageSameTemperature(scans, fit_a_line=True, save=True, save_path=l2_path)
+
     print('Done')
