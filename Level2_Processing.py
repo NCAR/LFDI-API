@@ -6,6 +6,7 @@ from PIL import Image
 #Smooth a 1D csv and plot it
 import heapq
 from matplotlib import animation
+import imageio
 
 #Create a class to store the data for each temperature
 class TemperatueScanSet:
@@ -220,7 +221,13 @@ def plotLocalMaximasVsVoltage(scans, calibration, convert_to_nm = False,fit_a_li
         plt.savefig(save_path+"\\" + 'LocalMaximasVsVoltage.png', bbox_inches='tight')
     if show:
         plt.show()
-    return
+    
+    #Create a list of the first local maxima sorted by Voltages
+    first_local_maxima = []
+    for scan in scans:
+        first_local_maxima.append(scan.first_local_maxima)
+    return first_local_maxima
+    
 
 #plot all the local maximas of the scans in the format nm offset vs the temperature
 def plotLocalMaximasVTemperature(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None, show = False):
@@ -272,11 +279,14 @@ def plotLocalMaximasVsVoltageSameTemperature(scans,fit_a_line = False, save = Fa
             if scan.temperature == scan2.temperature:
                 same_temperature_scans.append(scan2)
         #plot the local maximas vs voltage for the scans with the same temperature
+        first_local_maxima = []
         for scan2 in same_temperature_scans:
             plt.plot(scan2.voltage, scan2.first_local_maxima, 'o')
+            first_local_maxima.append(scan2.first_local_maxima)
         plt.xlabel('Voltage (V)')
         plt.ylabel('First Maxima (Pixel Position)')    
         plt.title('First Maxima vs Voltage at ' + str(scan.temperature) + 'C')
+        np.savetxt(save_path+"\\" + 'LocalMaximasVsVoltage' + str(scan.temperature) + '.csv', first_local_maxima, delimiter=",")
         Furthest_Maxima = findMaxima(same_temperature_scans)
 
         #only plot 10 ticks
@@ -290,6 +300,13 @@ def plotLocalMaximasVsVoltageSameTemperature(scans,fit_a_line = False, save = Fa
             plt.show()
         #clear the plot
         plt.clf()
+
+        #Return the first local maxima of the scans sorted by voltage
+        for scan in same_temperature_scans:
+            first_local_maxima.append(scan.first_local_maxima)
+        #Save the first local maximas as a csv file
+        
+        return first_local_maxima
 
 
 #plot the local maximas vs temperature for all the scans with the same voltage
@@ -345,25 +362,31 @@ def plot3DLocalMaximas(scans, save = False, save_path = None):
     z = []
     for scan in scans:
         x.append(scan.temperature)
-        y.append(scan.first_local_maxima)
-        z.append(scan.voltage)
+        z.append(scan.first_local_maxima)
+        y.append(scan.voltage)
     ax.scatter(x, y, z)
     ax.set_xlabel('Temperature (C)')
-    ax.set_ylabel('First Maxima (Pixel Position)')
-    ax.set_zlabel('Voltage (V)')
+    ax.set_ylabel("Voltage (V)")
+    ax.set_zlabel('First Maxima (Pixel Position)')
     if save:
         plt.savefig(save_path+"\\" + 'Voltage vs First Maxima vs Temperature.png', bbox_inches='tight')
-    #plt.show()
-    #Creat a 3d rotating GIF of the plot
+    
+    #Create a gif of the plot rotating horizontally
     for angle in range(0, 360):
         ax.view_init(30, angle)
         plt.draw()
-        plt.pause(.001)
-    #save the plot as a gif
-    ani = animation.FuncAnimation(fig, ax.view_init, frames=range(0, 360), interval=100)
-    ani.save(save_path+"\\" + 'Voltage vs First Maxima vs Temperature.gif', writer='imagemagick', fps=30)
+        plt.savefig(save_path+"\\" + 'Voltage vs First Maxima vs Temperature' + str(angle) + '.png', bbox_inches='tight')
+    #Combine the images into a gif
+    images = []
+    for angle in range(0, 360):
+        images.append(imageio.imread(save_path+"\\" + 'Voltage vs First Maxima vs Temperature' + str(angle) + '.png'))
+    imageio.mimsave(save_path+"\\" + 'Voltage vs First Maxima vs Temperature.gif', images)
     plt.close()
+    #Delete the images
+    for angle in range(0, 360):
+        os.remove(save_path+"\\" + 'Voltage vs First Maxima vs Temperature' + str(angle) + '.png')
     return
+    
 #open the Hydrogen Calibration csv and find the max value
 def findHydrogenMax(filename):
     data = np.loadtxt(filename, delimiter=',')
@@ -433,10 +456,16 @@ def findCorrelation(seed_scan: Scan, temperature_scan_sets: list[TemperatueScanS
 
     #make a correlation matrix
     correlation_matrix = np.reshape(correlation_values, (len(temperature_scan_sets), len(temperature_scan_set.scans)))
+    #Plot correlations with a value of 1 as a Green Dot
+
     #plot the correlation matrix
     #cLEAR ALL PREVIOUS PLOTS
     plt.clf()
     plt.imshow(correlation_matrix, cmap='hot', interpolation='nearest')
+    plt.colorbar(label='Correlation')
+    plt.scatter(np.where(correlation_matrix == 1)[1], np.where(correlation_matrix == 1)[0], c='g', marker='o', label='Seed')
+    #Show legen
+    plt.legend()
     #label the x axis
     plt.xlabel('Voltage (V)')
     #Change the Axis so that the voltage is in the correct order
@@ -445,21 +474,39 @@ def findCorrelation(seed_scan: Scan, temperature_scan_sets: list[TemperatueScanS
     plt.xticks(np.arange(len(temperature_scan_set.scans))[::5], [scan.voltage for scan in temperature_scan_set.scans][::5])
     #label the y axis
     plt.ylabel('Temperature (C)')
+    #mark the position of the Seed with a green dot
     #Change the Axis so that the temperature is in the correct order
     plt.yticks(np.arange(len(temperature_scan_sets)), [temperature_scan_set.temperature for temperature_scan_set in temperature_scan_sets])
     #label the color bar
-    plt.colorbar(label='Correlation')
+    
     #Plot the Title
     plt.title(f'Correlation of Seed {str(seed_scan.temperature)}C and {str(seed_scan.voltage)}V')
     #Expand the size of the plot to fit the labels
     plt.gcf().set_size_inches(20, 10)    
     #save the plot
     if save:
-        plt.savefig(save_path+"\\" + f'Correlation of Seed {str(seed_scan.temperature)}C and {str(seed_scan.voltage)}V.png', bbox_inches='tight')
+        #File name is the temperature and voltage of the seed scan
+        filename = f"{save_path}\\Correlation of Seed {str(seed_scan.temperature)}C and {str(seed_scan.voltage)}V.png"
+        plt.savefig(filename , bbox_inches='tight')
     #show the plot
     if show:
         plt.show()
-    return correlation_matrix
+    #make a File to store the max correlation values
+    CSV = f"{save_path}\\Correlation of Seed {str(seed_scan.temperature)}C.csv"
+    with open(CSV, "a") as file:
+        file.write(f"Max Correlation Voltage, Temperature, Seed Voltage\n")
+    #For each row in the correlation matrix find the highest correlation value and the voltage that it corresponds to
+    i = 0
+    for row in correlation_matrix:
+        #find the highest correlation value
+        max_correlation = np.max(row[29:60])
+        #find the voltage that corresponds to the highest correlation value
+        max_correlation_voltage = float(np.where(row == max_correlation)[0][0]/10)
+        #print the results
+        with open(CSV, "a") as file:
+            file.write(f"{max_correlation_voltage}V, {temperature_scan_sets[i].temperature}C, {seed_scan.voltage}V\n")
+        i += 1
+    return correlation_matrix, filename 
 
 
 
@@ -490,16 +537,19 @@ def convertCSVFileNames(path):
                 print(f"Failed to rename {file}")
     return
 
+#Create a gif out of a list of Files
+def createGif(file_list, save_path, duration = 0.5):
+    #make a list of images
+    images = []
+    for file in file_list:
+        images.append(imageio.imread(file))
+    imageio.mimsave(save_path+"\\" + 'CorrelationsAt23.1C.gif', images)
+    return
+
 if __name__ == '__main__':
     path = "C:\\Users\\mjeffers\\Desktop\\"
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
-    #Load in the calibration data
-    # calibration = Calibration(f"{path}Calibration_2023-01-11_18-33-13\\")
-    # hydrogen_pixel_position = findHydrogenPixelPosition(f'{path}Calibration_2023-01-11_18-33-13\\Hydrogen_Calibration_CrossSection.csv')
-    # findBromineMax(f'{path}Calibration_2023-01-11_18-33-13\\Bromine_Calibration_Image.tif')
-    # calibration.Hydrogen_Pixel_Position = hydrogen_pixel_position
-    # calibration.Pixel_Scaling = calibration.get_Pixel_Scaling()
-    # calibration.Pixel_Offset = calibration.get_Pixel_Offset()
+
 
     # print(calibration)
     scan_path = f"{path}Experiment_2023-01-19_11-40-31\\"
@@ -533,18 +583,25 @@ if __name__ == '__main__':
         temperature_scan_set.plotFirstLocalMaximas(save=True, folder=l2_path)
         
     #3d plot
+    print("Creating 3D Plots")
     plot3DLocalMaximas(scans, save=True, save_path=l2_path)
     #2d plot
+    print("Creating 2D Plots")
     plotLocalMaximasVsVoltageSameTemperature(scans, fit_a_line=True, save=True, save_path=l2_path)
-    #2d plot
-    plotLocalMaximasVsTemperatureSameVoltage(scans, fit_a_line=True, save=True, save_path=l2_path)
+    # #2d plot
+    #plotLocalMaximasVsTemperatureSameVoltage(scans, fit_a_line=True, save=True, save_path=l2_path)
 
     #find the correlation of every other scan in the set of temperature scans
     #Find the Scan that is closest to 23C and 3.0V
     seed_scan = None
+    files = []
     for scan in scans:
         if scan.temperature == 23.1:
             seed_scan = scan
-            findCorrelation(seed_scan, temperature_scan_sets, save=True, save_path=l2_path)
-        
+            print("Creating Correlation Plots")
+            correlation_matrix, filename = findCorrelation(seed_scan, temperature_scan_sets, save=True, save_path=l2_path)
+            files.append(filename)
+    #Create a Gif out of the correlation plots
+    createGif(files, save_path=l2_path)
+    
     print('Done')
