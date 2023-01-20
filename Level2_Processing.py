@@ -4,7 +4,8 @@ from datetime import datetime
 from scipy.signal import savgol_filter
 from PIL import Image
 #Smooth a 1D csv and plot it
-
+import heapq
+from matplotlib import animation
 
 #Create a class to store the data for each temperature
 class TemperatueScanSet:
@@ -62,6 +63,7 @@ class TemperatueScanSet:
         for scan in self.scans:
             distances.append(scan.average_distance_between_maximas)
         return np.mean(distances)
+
 
 
 
@@ -336,7 +338,7 @@ def plotLocalMaximasVsTemperatureSameVoltage(scans,fit_a_line = False, save = Fa
 
 #make a 3d plot of the first local maxima vs temperature and voltage
 def plot3DLocalMaximas(scans, save = False, save_path = None):
-    fig = plt.figure(figsize=(30.0, 10.0))
+    fig = plt.figure(figsize=(10.0, 10.0))
     ax = fig.add_subplot(111, projection='3d')
     x = []
     y = []
@@ -352,6 +354,15 @@ def plot3DLocalMaximas(scans, save = False, save_path = None):
     if save:
         plt.savefig(save_path+"\\" + 'Voltage vs First Maxima vs Temperature.png', bbox_inches='tight')
     #plt.show()
+    #Creat a 3d rotating GIF of the plot
+    for angle in range(0, 360):
+        ax.view_init(30, angle)
+        plt.draw()
+        plt.pause(.001)
+    #save the plot as a gif
+    ani = animation.FuncAnimation(fig, ax.view_init, frames=range(0, 360), interval=100)
+    ani.save(save_path+"\\" + 'Voltage vs First Maxima vs Temperature.gif', writer='imagemagick', fps=30)
+    plt.close()
     return
 #open the Hydrogen Calibration csv and find the max value
 def findHydrogenMax(filename):
@@ -405,6 +416,79 @@ def makeLevel2Folder(path):
     return path + "Level2_" + dt_string
 
 
+#Using a seed scan find the correlation of every other scan in the set of temperature scans make a correlation matrix at the end
+def findCorrelation(seed_scan: Scan, temperature_scan_sets: list[TemperatueScanSet], show = False, save = False, save_path = None):
+    #make a list of the correlation values
+    correlation_values = []
+    temperature_Correlation = []
+    #for every temperature scan set
+    for temperature_scan_set in temperature_scan_sets:
+        #for every scan in the temperature scan set
+        for scan in temperature_scan_set.scans:
+            #find the correlation between the seed scan and the scan
+            correlation = np.corrcoef(seed_scan.data, scan.data)[0,1]
+            #add the correlation to the list of correlation values
+            temperature_Correlation.append(correlation)
+            correlation_values.append(correlation)
+
+    #make a correlation matrix
+    correlation_matrix = np.reshape(correlation_values, (len(temperature_scan_sets), len(temperature_scan_set.scans)))
+    #plot the correlation matrix
+    #cLEAR ALL PREVIOUS PLOTS
+    plt.clf()
+    plt.imshow(correlation_matrix, cmap='hot', interpolation='nearest')
+    #label the x axis
+    plt.xlabel('Voltage (V)')
+    #Change the Axis so that the voltage is in the correct order
+    plt.xticks(np.arange(len(temperature_scan_set.scans)), [scan.voltage for scan in temperature_scan_set.scans])
+    #only plot every 5th label on the x axis
+    plt.xticks(np.arange(len(temperature_scan_set.scans))[::5], [scan.voltage for scan in temperature_scan_set.scans][::5])
+    #label the y axis
+    plt.ylabel('Temperature (C)')
+    #Change the Axis so that the temperature is in the correct order
+    plt.yticks(np.arange(len(temperature_scan_sets)), [temperature_scan_set.temperature for temperature_scan_set in temperature_scan_sets])
+    #label the color bar
+    plt.colorbar(label='Correlation')
+    #Plot the Title
+    plt.title(f'Correlation of Seed {str(seed_scan.temperature)}C and {str(seed_scan.voltage)}V')
+    #Expand the size of the plot to fit the labels
+    plt.gcf().set_size_inches(20, 10)    
+    #save the plot
+    if save:
+        plt.savefig(save_path+"\\" + f'Correlation of Seed {str(seed_scan.temperature)}C and {str(seed_scan.voltage)}V.png', bbox_inches='tight')
+    #show the plot
+    if show:
+        plt.show()
+    return correlation_matrix
+
+
+
+#Convert all files with extension .csv and the format of 25.602C_9.200000000000001V.csv to have the correct format of 25.602C_9.2V.csv
+def convertCSVFileNames(path):
+    #for every file in the directory
+    for file in os.listdir(path):
+        #if the file is a csv file
+        if file.endswith(".csv"):
+            #split the file name into the temperature and voltage
+            temperature, voltage = file.split("_")
+            #remove the C from the temperature
+            temperature = temperature[:-1]
+            #remove the V from the voltage
+            voltage = voltage[:-1]
+            #remove the .csv from the voltage
+            voltage = voltage[:-4]
+            #convert the voltage to a float
+            voltage = float(voltage)
+            #round the voltage to 1 decimal place
+            voltage = round(voltage, 1)
+            #add the V back to the voltage
+            voltage = str(voltage) + "V"
+            #rename the file
+            try:
+                os.rename(path + file, path + temperature + "C_" + voltage + ".csv")
+            except:
+                print(f"Failed to rename {file}")
+    return
 
 if __name__ == '__main__':
     path = "C:\\Users\\mjeffers\\Desktop\\"
@@ -418,18 +502,19 @@ if __name__ == '__main__':
     # calibration.Pixel_Offset = calibration.get_Pixel_Offset()
 
     # print(calibration)
-    scan_path = f"{path}Experiment_2023-01-17_14-04-09\\"
+    scan_path = f"{path}Experiment_2023-01-19_11-40-31\\"
     #find all CSV files in the directory
     import glob
     import os
     os.chdir(scan_path)
+    convertCSVFileNames(scan_path)
     files = glob.glob("*.csv")
     #Create a list of Scan objects
     scans = []
     l2_path = makeLevel2Folder(path)
     for file in files:
         scan = Scan(file)
-        scan.plot(plot_smoothed = True, convert_to_nm=False, save=True, save_path=l2_path)
+        #scan.plot(plot_smoothed = True, convert_to_nm=False, save=True, save_path=l2_path)
         scans.append(scan)
 
     #find all the scans that have the same temperature
@@ -454,4 +539,12 @@ if __name__ == '__main__':
     #2d plot
     plotLocalMaximasVsTemperatureSameVoltage(scans, fit_a_line=True, save=True, save_path=l2_path)
 
+    #find the correlation of every other scan in the set of temperature scans
+    #Find the Scan that is closest to 23C and 3.0V
+    seed_scan = None
+    for scan in scans:
+        if scan.temperature == 23.1:
+            seed_scan = scan
+            findCorrelation(seed_scan, temperature_scan_sets, save=True, save_path=l2_path)
+        
     print('Done')
