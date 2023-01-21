@@ -9,6 +9,7 @@ from matplotlib import animation
 import imageio
 
 #Create a class to store the data for each temperature
+#This will store all of the scans that happened at this temperature
 class TemperatueScanSet:
     def __init__(self, temperature, scans):
         self.temperature = temperature
@@ -18,7 +19,7 @@ class TemperatueScanSet:
         self.average_distance_between_maximas = self.findAverageDistanceBetweenMaximas()
         self.retardances = []
         self.getFirstLocalMaximas()
-        self.fixDiscontinuity()
+        #self.fixDiscontinuity()
         
         
         return
@@ -46,7 +47,7 @@ class TemperatueScanSet:
         #Clear all plots
         plt.clf()
         plt.figure()
-        plt.title(f"First Local Maximas vs Voltage for {self.temperature}C Fixed Discontinuities")
+        plt.title(f"First Local Maximas vs Voltage for {self.temperature}C")
         plt.xlabel("Voltage (V)")
         plt.ylabel("First Local Maxima")
         #Go through each scan and plot the voltage vs the retardance
@@ -67,7 +68,8 @@ class TemperatueScanSet:
 
 
 
-
+#Create a class for a scan
+#This stores all of the data for a single scan
 class Scan:
     def __init__(self, filename):
         #File name will have the format "XX.XXXC_V.VV.csv"
@@ -196,75 +198,9 @@ def findMaxima(scans):
             maxima = scan.first_local_maxima
     return maxima
 
-#plot local maximas vs Voltage
-def plotLocalMaximasVsVoltage(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None, show = False):
-    plt.figure(figsize=(30.0, 10.0))
-    for scan in scans:
-        plt.plot(scan.voltage, scan.first_local_maxima, 'o')
-    plt.xlabel('Voltage (V)')
-    plt.ylabel('First Maxima (Pixel Position)')    
-    plt.title('First Maxima vs Voltage')
-    Furthest_Maxima = findMaxima(scans)
-    #Convert the y axis to nm using Pixel Scaling and Pixel Offset with 2 decimal places
-    if convert_to_nm:
-        plt.ylabel('First Maxima (nm)')
-        plt.yticks(np.arange(0, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, 1), np.arange(0, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, 1).round(2))
-        plt.title('First Maxima vs Voltage (nm)')
-    if fit_a_line:
-        #fit a line to the data
-        z = np.polyfit(scans[0].voltage, scans[0].first_local_maxima, 1)
-        p = np.poly1d(z)
-        plt.plot(scans[0].voltage, p(scans[0].voltage), "r--", label = 'Fit')
-        plt.legend()
-    if save:
-        #Save as full screen png
-        plt.savefig(save_path+"\\" + 'LocalMaximasVsVoltage.png', bbox_inches='tight')
-    if show:
-        plt.show()
-    
-    #Create a list of the first local maxima sorted by Voltages
-    first_local_maxima = []
-    for scan in scans:
-        first_local_maxima.append(scan.first_local_maxima)
-    return first_local_maxima
+
     
 
-#plot all the local maximas of the scans in the format nm offset vs the temperature
-def plotLocalMaximasVTemperature(scans, calibration, convert_to_nm = False,fit_a_line = False, save = False, save_path = None, show = False):
-    plt.figure(figsize=(30.0, 10.0))
-    for scan in scans:
-        plt.plot(scan.temperature, scan.first_local_maxima, 'o')
-    plt.xlabel('Temperature (C)')
-    plt.ylabel('First Maxima (Pixel Position)')    
-    plt.title('First Maxima vs Temperature')
-    Furthest_Maxima = findMaxima(scans)
-    #Convert the y axis to nm using Pixel Scaling and Pixel Offset with 2 decimal places
-    if convert_to_nm:
-        plt.ylabel('First Maxima (nm)')
-        plt.yticks(np.arange(0, Furthest_Maxima, 1), np.around(np.arange(calibration.Pixel_Offset, Furthest_Maxima*calibration.Pixel_Scaling + calibration.Pixel_Offset, calibration.Pixel_Scaling), 2))
-
-    if fit_a_line:
-        #Fit a line to the data
-        x = []
-        y = []
-        for scan in scans:
-            x.append(scan.temperature)
-            y.append(scan.first_local_maxima)
-        z = np.polyfit(x, y, 1)
-        p = np.poly1d(z)
-        plt.plot(x,p(x),"r--")
-        #display the equation of the line
-        plt.text(0.05, 0.95, 'y=%.6fx+(%.6f)'%(z[0],z[1]), ha='left', va='top', transform=plt.gca().transAxes)
-
-    #only plot 10 ticks
-    plt.locator_params(axis='y', nbins=10)
-    #add grid lines
-    plt.grid()
-    if save:
-        plt.savefig(save_path+"\\" + 'First Maxima vs Temperature.png', bbox_inches='tight')
-    if show:
-        plt.show()
-    return
 
 
 #Plot for every Scan that has the same Temperature plot the local maximas vs Voltage
@@ -386,46 +322,6 @@ def plot3DLocalMaximas(scans, save = False, save_path = None):
     for angle in range(0, 360):
         os.remove(save_path+"\\" + 'Voltage vs First Maxima vs Temperature' + str(angle) + '.png')
     return
-    
-#open the Hydrogen Calibration csv and find the max value
-def findHydrogenMax(filename):
-    data = np.loadtxt(filename, delimiter=',')
-    return np.argmax(data)
-
-#Find every entry that has the same value as the max value and return the average of the pixel position
-def findHydrogenPixelPosition(filename):
-    data = np.loadtxt(filename, delimiter=',')
-    max_value = np.max(data)
-    max_value_positions = np.where(data == max_value)
-    return np.average(max_value_positions)
-
-#open the Bromine_Calibration_Image.tif and find the max value using the cross section through the middle of the image.
-#Plot the cross section and the max value
-def find_Max(calibration, filename):
-    image = Image.open(filename)
-    image = np.array(image)
-    #Find the cross section through the middle of the image
-    cross_section = image[int(len(image)/2)]
-    smoothed_data = savgol_filter(cross_section, 50, 3)
-    smoothed_data = savgol_filter(smoothed_data, 50, 3)
-    
-    #Find the max value in the cross section
-    max_value = np.max(smoothed_data)
-    #Find the pixel position of the max value
-    max_value_position = np.argmax(smoothed_data)
-    #Plot the cross section and the max value
-    plt.figure(figsize=(30.0, 10.0))
-    plt.plot(cross_section)
-    plt.plot(smoothed_data)
-    plt.plot(max_value_position, max_value, 'o')
-    plt.xlabel('Pixel Position')
-    #Print the pixel position of the max value on the graph with a label 
-    plt.text(max_value_position, max_value, 'Max Value Pixel Position: ' + str(max_value_position), ha='left', va='top')
-    plt.ylabel('Intensity')
-    plt.title('Bromine Calibration')
-    plt.show()
-    return max_value_position
-
 
 
 #make a level 2 folder for the data
@@ -510,6 +406,73 @@ def findCorrelation(seed_scan: Scan, temperature_scan_sets: list[TemperatueScanS
 
 
 
+#Creat a plot of the first local maxima vs the Voltage for a set of Scans at a given temperature
+def plotFirstLocalMaxima(temperature_scan_set: TemperatueScanSet, show = False, save = False, save_path = None):
+    #make a list of the first local maxima
+    first_local_maxima = []
+    #for every scan in the temperature scan set
+    for scan in temperature_scan_set.scans:
+        #find the first local maxima
+        first_local_maxima.append(scan.first_local_maxima)
+    #plot the first local maxima vs the voltage
+    plt.plot([scan.voltage for scan in temperature_scan_set.scans], first_local_maxima)
+    #label the x axis
+    #Create a list of Tuples of the voltage values and the Maximas
+    labels = [(scan.voltage, scan.first_local_maxima) for scan in temperature_scan_set.scans]
+    #Sor the list by local maxima value
+    labels.sort(key=lambda x: x[1])
+    plt.xlabel('Voltage (V)')
+    #label the y axis
+    plt.ylabel('Intensity')
+    #plot the title
+    plt.title(f'First Local Maxima of {temperature_scan_set.temperature}C')
+    #save the plot
+    if save:
+        #File name is the temperature of the temperature scan set
+        filename = f"{save_path}\\First Local Maxima of {temperature_scan_set.temperature}C.png"
+        plt.savefig(filename , bbox_inches='tight')
+    #show the plot
+    if show:
+        plt.show()
+    return filename
+
+
+
+#Create a CSV where the index is the first local maxima and the Value is the Voltage
+def createCSVOfVoltageSortedByPosition(temperature_scan_set: TemperatueScanSet, save_path = None):
+    #Create a list of Tuples of the voltage values and the Maximas
+    labels = [(scan.voltage, scan.first_local_maxima) for scan in temperature_scan_set.scans]
+    #Sort the list by local maxima value
+    labels.sort(key=lambda x: x[1])
+    print(labels)
+    #Create a CSV where the index is the first local maxima and the value is the voltage if a fist local maxima value is missing then interpolate between the two adjacent values. There should be a value for every position between zero and the highest value local maxima
+    #File name is the temperature of the temperature scan set
+    filename = f"{save_path}\\Voltage Sorted by Position of {temperature_scan_set.temperature}C.csv"
+    with open(filename, "a") as file:
+        file.write(f"Position, Voltage\n")
+        #for every position between zero and the highest value local maxima
+        for i in range(int(labels[-1][1])):
+            print(i)
+            #if the position is in the list of first local maxima
+            if i in [label[1] for label in labels]:
+                #write the position and the voltage to the CSV
+                file.write(f"{i}, {labels[i][0]}\n")
+            else:
+                #find the first position that is greater than the current position
+                for label in labels:
+                    if label[1] > i:
+                        #find the first position that is less than the current position
+                        for label2 in reversed(labels):
+                            if label2[1] < i:
+                                #interpolate between the two positions
+                                voltage = label2[0] + (label[0] - label2[0]) * (i - label2[1]) / (label[1] - label2[1])
+                                #write the position and the voltage to the CSV
+                                file.write(f"{i}, {voltage}\n")
+                                break
+                        break
+    return filename
+
+
 #Convert all files with extension .csv and the format of 25.602C_9.200000000000001V.csv to have the correct format of 25.602C_9.2V.csv
 def convertCSVFileNames(path):
     #for every file in the directory
@@ -537,8 +500,9 @@ def convertCSVFileNames(path):
                 print(f"Failed to rename {file}")
     return
 
+
 #Create a gif out of a list of Files
-def createGif(file_list, save_path, duration = 0.5):
+def createGif(file_list, save_path):
     #make a list of images
     images = []
     for file in file_list:
@@ -546,6 +510,8 @@ def createGif(file_list, save_path, duration = 0.5):
     imageio.mimsave(save_path+"\\" + 'CorrelationsAt23.1C.gif', images)
     return
 
+
+#Main Function
 if __name__ == '__main__':
     path = "C:\\Users\\mjeffers\\Desktop\\"
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
@@ -564,7 +530,7 @@ if __name__ == '__main__':
     l2_path = makeLevel2Folder(path)
     for file in files:
         scan = Scan(file)
-        #scan.plot(plot_smoothed = True, convert_to_nm=False, save=True, save_path=l2_path)
+        #scan.plot(plot_smoothed = True, convert_to_nm=False,show=True, save=True, save_path=l2_path)
         scans.append(scan)
 
     #find all the scans that have the same temperature
@@ -584,11 +550,14 @@ if __name__ == '__main__':
         
     #3d plot
     print("Creating 3D Plots")
-    plot3DLocalMaximas(scans, save=True, save_path=l2_path)
+    #plot3DLocalMaximas(scans, save=True, save_path=l2_path)
     #2d plot
     print("Creating 2D Plots")
-    plotLocalMaximasVsVoltageSameTemperature(scans, fit_a_line=True, save=True, save_path=l2_path)
-    # #2d plot
+    for temp_scan in temperature_scan_sets:
+        #plotFirstLocalMaxima(temp_scan, save=True, save_path=l2_path)
+        createCSVOfVoltageSortedByPosition(temp_scan, save_path=l2_path)
+    # plotLocalMaximasVsVoltageSameTemperature(scans, fit_a_line=True, save=True, save_path=l2_path)
+    # # #2d plot
     #plotLocalMaximasVsTemperatureSameVoltage(scans, fit_a_line=True, save=True, save_path=l2_path)
 
     #find the correlation of every other scan in the set of temperature scans
