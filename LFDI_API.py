@@ -54,7 +54,7 @@ class LFDI_TCB(object):
             print("DAC_Selection must be an integer")
             return
 
-        return self.send_command(f"v{DAC_Selection} {voltage}")
+        return self.send_command(f"v{voltage}")
 
 
     #Get the DAC output voltage Peak2Peak
@@ -89,8 +89,12 @@ class LFDI_TCB(object):
         
     #Get the Average Temperature
     def get_average_temperature(self):
-        data = self.parse_raw_data(self.read_raw_data())
-        return data[9].strip('C')
+        try:
+            data = self.parse_raw_data(self.read_raw_data())
+            return data[9].strip('C')
+        except:
+            print(f"Error With Call")
+            return None
 
     #Get the Target Temperature
     def get_target_temperature(self):
@@ -133,11 +137,15 @@ class LFDI_TCB(object):
     
     #Parse the Raw Data. Data Comes in as a string that is tab seperated into 16 columns the Header is the first row
     def parse_raw_data(self, raw_data):
-        raw_data = self.read_raw_data()
-        #remove the first row which is the header
-        raw_data = raw_data.split("\n")
-        raw_data = raw_data[1].split("\t")
-        return(raw_data)
+        try:
+            raw_data = self.read_raw_data()
+            #remove the first row which is the header
+            raw_data = raw_data.split("\n")
+            raw_data = raw_data[1].split("\t")
+            return(raw_data)
+        except IndexError as e:
+            print(f"possible Desync Error with TCB output {e}")
+            return(-1)
 
 if __name__ == "__main__":
 
@@ -163,7 +171,7 @@ if __name__ == "__main__":
         print("Could not connect to LFDI_TCB")
         exit()
     #Set the temperature
-    print(lfdi.set_temperature(temp))
+    print(lfdi.set_target_temperature(temp))
     #Set the PID values
     print(lfdi.set_kp(kp))
     print(lfdi.set_ki(ki))
@@ -186,6 +194,9 @@ if __name__ == "__main__":
         #Parse the raw data
         raw_data = lfdi.read_raw_data()
         print(raw_data)
+        for i in range(10):
+            print(lfdi.set_DAC(0, i))
+            sleep(2)
         raw_data = lfdi.parse_raw_data(raw_data)
         
         #Convert list to a tsv string
