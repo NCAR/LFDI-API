@@ -1,9 +1,21 @@
+#
+# Description: This is a class that will control the Spectrograph as well as the Camera attached to it
+# Author: Mitchell Jeffers
+# Date: 1/20/2022 
+
+
+
+
+
 import ZWO
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
 import time
 from functools import partial
+
+
+
 
 #This Class is to Control the Peripherials attached to the Spectrometer
 class Spectrometer:
@@ -62,15 +74,17 @@ class Spectrometer:
         axis.set_ylabel('Intensity')
         return
 
-
+    #This will get the position of the peak in the cross section
     def get_peak_position(self, crosssection):
         peak_position = np.argmax(crosssection)
         return peak_position
 
-    #Run Continuous Output of the Plot all images will be saved to the Temp Files names
-    def continuous_output(self, refresh_rate=0.5, end_trigger=None):
+    #Run Continuous Output of the Plot all images will be saved to the Temp Files names the refresh rate is in seconds and the end trigger is a function that returns a boolean 
+    def continuous_output(self, refresh_rate=1, end_trigger=None):
         print('Starting Continuous Output')
         print('Close the plot to Continue')
+        if end_trigger is not None:
+            print(f'Or End will be Trigger When {end_trigger.__name__} Returns True')
         plt.ion()
         fig = plt.figure()
         #Create 2 Subplots in the figure with 1 row and 2 columns and white space inbetween
@@ -138,7 +152,7 @@ class Spectrometer:
         self.camera.auto_exposure = enable
         return
 
-#A function that will return true 25 seconds after the entered time
+#A function that will return true 25 seconds after the entered time Just to test Functionality
 def end_trigger(start):
     if  time.time()> start + 25:
         return True
