@@ -8,6 +8,45 @@ import datetime
 from functools import partial
 
 
+def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp, end_temp, step, tolerance, folder):
+    print(f"Start Temp {start_temp}")
+    print(f"End Temp {end_temp}")
+    print(f"Step Temp {step}")
+    #Create a list of temperatures to cycle through
+    temperatures = np.arange(start_temp, end_temp, step)
+    #Create a list to store the filenames of the images
+    filenames = []
+    #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
+    for temperature in temperatures:
+        #Set the temperature
+        LFDI_TCB.set_target_temperature(temperature)
+        LFDI_TCB.set_enable(True)
+        temporal_resolution = 1*60 #1 minute
+        #Continuously output until we reach the set point
+        while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
+            now = time.time()
+            spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
+            #Take a measurement
+            #Get the Current Temp From LFDI
+            current_temp = LFDI_TCB.get_temperature().strip(' ')
+            #Format the Current Temp to be a string with 2 decimal places
+            current_temp = f"{current_temp:.2f}"
+            os.rename(spectrometer.current_crosssection, f"{folder}/{str(current_temp)}C_AutoV.csv")
+        print(f"Reached {temperature}C")
+        print("Waiting 5 minutes")
+        #Wait For the Crystal to warm through out
+        now = time.time()
+        seconds_to_wait = 300
+        while not wait_time(now, seconds_to_wait):
+            current_time = time.time()
+            spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
+            current_temp = LFDI_TCB.get_temperature().strip(' ')
+            #Format the Current Temp to be a string with 2 decimal places
+            current_temp = f"{current_temp:.2f}"
+            os.rename(spectrometer.current_crosssection, f"{folder}/{str(time.time())}_{str(current_temp)}C_AutoV.csv")
+        print("Finished Waiting")
+        print(f"Finished {temperature}C")
+    return
 
 def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp, end_temp, step_temp,start_voltage, end_voltage, step_voltage, tolerance, folder):
     print(f"Start Temp {start_temp}")
@@ -172,5 +211,6 @@ if __name__ == "__main__":
 
     
     #Cycle through the temperatures
-    SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
+    #SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
+    Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, .5, tolerance=0.1, folder=folder)
     
