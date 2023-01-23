@@ -84,7 +84,7 @@ class Spectrometer:
         print('Starting Continuous Output')
         print('Close the plot to Continue')
         if end_trigger is not None:
-            print(f'Or End will be Trigger When {end_trigger.__name__} Returns True')
+            print(f'Or End will be Trigger When The End Trigger Returns True')
         plt.ion()
         fig = plt.figure()
         #Create 2 Subplots in the figure with 1 row and 2 columns and white space inbetween
