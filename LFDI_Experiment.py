@@ -47,8 +47,8 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
         print("Finished Waiting")
         print(f"Finished {temperature}C")
     return
-
-def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp, end_temp, step_temp,start_voltage, end_voltage, step_voltage, tolerance, folder):
+#Sweep the temperature of the TCB and the Voltage applied from the DAC; take an image at each state
+def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp: float, end_temp: float, step_temp:float ,start_voltage:float, end_voltage:float, step_voltage:float, tolerance:float, folder:os.path):
     print(f"Start Temp {start_temp}")
     print(f"End Temp {end_temp}")
     print(f"Step Temp {step_temp}")
@@ -194,6 +194,8 @@ if __name__ == "__main__":
     #ask the user if they want to sample for ambient temperature or enter it manually
     response = input("Would you like to sample the ambient temperature? [y/n]")
     
+
+    #Sample the ambient temperature
     if response.lower() == 'y':
         #Sample the ambient temperature
         ambient_temperature = None
