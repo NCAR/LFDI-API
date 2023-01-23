@@ -584,12 +584,16 @@ def createCSVOfVoltageSortedByPosition(temperature_scan_set: TemperatueScanSet, 
     with open(filename, "a") as file:
         file.write(f"Position, Voltage\n")
         #for every position between zero and the highest value local maxima
+        Positions = "Position,"
+        Voltages = "Voltages,"
         for i in range(int(labels[-1][1])):
             print(i)
             #if the position is in the list of first local maxima
             if i in [label[1] for label in labels]:
                 #write the position and the voltage to the CSV
-                file.write(f"{i}, {labels[i][0]}\n")
+                Positions += f"{i},"
+                Voltages += f"{round(labels[i][0], 3)},"
+                #file.write(f"{i}, {round(labels[i][0], 3)}\n")
             else:
                 #find the first position that is greater than the current position
                 for label in labels:
@@ -599,11 +603,16 @@ def createCSVOfVoltageSortedByPosition(temperature_scan_set: TemperatueScanSet, 
                             if label2[1] < i:
                                 #interpolate between the two positions
                                 voltage = label2[0] + (label[0] - label2[0]) * (i - label2[1]) / (label[1] - label2[1])
+                                #Format Voltage to 3 decimal places
+                                Voltages += f"{round(voltage, 3)},"
+                                Positions += f"{i},"
                                 #write the position and the voltage to the CSV
-                                file.write(f"{i}, {voltage}\n")
+                                #file.write(f"{i}, {voltage}\n")
                                 break
                         break
+        file.write(f"{Positions}\n{Voltages}\n")
     return filename
+
 
 
 #Convert all files with extension .csv and the format of 25.602C_9.200000000000001V.csv to have the correct format of 25.602C_9.2V.csv
@@ -652,7 +661,7 @@ if __name__ == '__main__':
 
     # print(calibration)
     scan_path = f"{path}Experiment_2023-01-20_15-19-55\\"
-    scan_path = f"{path}Experiment_2023-01-19_11-40-31\\"
+   # scan_path = f"{path}Experiment_2023-01-19_11-40-31\\"
     #find all CSV files in the directory
     import glob
     import os
@@ -710,9 +719,9 @@ if __name__ == '__main__':
 
 
 
-    # for temp_scan in temperature_scan_sets:
-    #     plot, Smoothed = plotFirstLocalMaxima(temp_scan,show = True, save=True, save_path=l2_path, FixDiscontinuities=True)
-    #     createCSVOfVoltageSortedByPosition(temp_scan, save_path=l2_path, FixedData=Smoothed)
+    for temp_scan in temperature_scan_sets:
+        plot, Smoothed = plotFirstLocalMaxima(temp_scan,show = True, save=True, save_path=l2_path, FixDiscontinuities=True)
+        createCSVOfVoltageSortedByPosition(temp_scan, save_path=l2_path, FixedData=Smoothed)
 
     # # plotLocalMaximasVsVoltageSameTemperature(scans, fit_a_line=True, save=True, save_path=l2_path)
     # # #2d plot
