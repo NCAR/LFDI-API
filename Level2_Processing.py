@@ -81,8 +81,11 @@ class Scan:
     def findAverageDistanceBetweenMaximas(self):
         #create a list of the distances between the maximas
         distances = []
-        for i in range(self.first_local_maxima_index, len(self.maxima)-1):
-            distances.append(self.maxima[i+1] - self.maxima[i])
+        #Exlude the last maxima because it can be a false reading. Also exclude any maxima that is less than 50 pixels away from a minima
+        for i in range(self.first_local_maxima_index, len(self.maxima)-2):
+            if self.maxima[i] - self.minima[i] > 100:
+                print(f"Maxima {i} is {self.maxima[i] - self.minima[i]} pixels away from minima {i}")
+                distances.append(self.maxima[i+1] - self.maxima[i])
         #return the average distance between maximas
         return np.mean(distances)
 
@@ -660,8 +663,8 @@ if __name__ == '__main__':
 
 
     # print(calibration)
-    scan_path = f"{path}Experiment_2023-01-20_15-19-55\\"
-   # scan_path = f"{path}Experiment_2023-01-19_11-40-31\\"
+    #scan_path = f"{path}Experiment_2023-01-20_15-19-55\\"
+    scan_path = f"{path}Experiment_2023-01-19_11-40-31\\"
     #find all CSV files in the directory
     import glob
     import os
@@ -675,6 +678,37 @@ if __name__ == '__main__':
         scan = Scan(file)
         #scan.plot(plot_smoothed = True, convert_to_nm=False,show=True, save=True, save_path=l2_path)
         scans.append(scan)
+
+    #Go through all the Scans and find the average distance between the local maxima
+    Distance = []
+    for scan in scans:
+        Distance.append(scan.average_distance_between_maximas)
+    #Find the average distance between the local maxima
+    AverageDistance = sum(Distance) / len(Distance)
+    #Find the standard deviation of the distance between the local maxima
+    StandardDeviation = (sum([(x - AverageDistance) ** 2 for x in Distance]) / len(Distance)) ** 0.5
+    #Find the maximum distance between the local maxima
+    MaxDistance = max(Distance)
+    #Find the minimum distance between the local maxima
+    MinDistance = min(Distance)
+    #Find the number of standard deviations between the average distance and the maximum distance
+    MaxDistanceStandardDeviation = (MaxDistance - AverageDistance) / StandardDeviation
+    #Find the number of standard deviations between the average distance and the minimum distance
+    MinDistanceStandardDeviation = (MinDistance - AverageDistance) / StandardDeviation
+    #Print all the Data
+    print(f"Average Distance Between Local Maximas (1 FSR): {AverageDistance}")
+    print(f"Standard Deviation: {StandardDeviation}")
+    print(f"Max Distance: {MaxDistance}")
+    print(f"Min Distance: {MinDistance}")
+    print(f"Max Distance Standard Deviation: {MaxDistanceStandardDeviation}")
+    print(f"Min Distance Standard Deviation: {MinDistanceStandardDeviation}")
+    #Find the scan with the minimum distance between the local maxima
+    MinScan = scans[Distance.index(MinDistance)]
+    #Plot the scan with the minimum distance between the local maxima
+    MinScan.plot(plot_smoothed = True, convert_to_nm=False,show=True, save=True, save_path=l2_path)
+    input("Press Enter to Continue")
+
+
 
     #find all the scans that have the same temperature
     temperature_scan_sets = []
