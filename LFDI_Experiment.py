@@ -28,10 +28,10 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
             #Take a measurement
             #Get the Current Temp From LFDI
-            current_temp = LFDI_TCB.get_temperature().strip(' ')
+            current_temp = LFDI_TCB.get_average_temperature().strip(' ')
             #Format the Current Temp to be a string with 2 decimal places
-            current_temp = f"{current_temp:.2f}"
-            os.rename(spectrometer.current_crosssection, f"{folder}/{str(current_temp)}C_AutoV.csv")
+            current_temp = f"{float(current_temp):.2f}"
+            os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
         print(f"Reached {temperature}C")
         print("Waiting 5 minutes")
         #Wait For the Crystal to warm through out
@@ -40,10 +40,10 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
         while not wait_time(now, seconds_to_wait):
             current_time = time.time()
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
-            current_temp = LFDI_TCB.get_temperature().strip(' ')
+            current_temp = LFDI_TCB.get_average_temperature().strip(' ')
             #Format the Current Temp to be a string with 2 decimal places
-            current_temp = f"{current_temp:.2f}"
-            os.rename(spectrometer.current_crosssection, f"{folder}/{str(time.time())}_{str(current_temp)}C_AutoV.csv")
+            current_temp = f"{float(current_temp):.2f}"
+            os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
         print("Finished Waiting")
         print(f"Finished {temperature}C")
     return
