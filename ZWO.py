@@ -75,11 +75,14 @@ class ZWO_Camera:
 
 
 if __name__ == '__main__':
+    #An example of how to use the ZWO Camera Class
     camera = ZWO_Camera()
     print(camera)
-    camera.set_exposure(0.000032)
+    camera.set_exposure(0.1)
     camera.set_binning(2)
     camera.set_image_type('RAW16')
     #camera.set_roi('max', 'max')
-    camera.capture('initalization_image.tiff')
+    camera.capture('Test_image_Binning2.tiff')
+    camera.set_binning(1)
+    camera.capture('Test_image_Binning1.tiff')
     print(camera)

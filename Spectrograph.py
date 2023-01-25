@@ -160,6 +160,7 @@ def end_trigger(start):
         return False
 
 if __name__ == '__main__':
+    #AnExample of how to Use the Spectrometer Class
     spec = Spectrometer()
     print("Output With out auto Exposure")
     spec.single_output('Test1')

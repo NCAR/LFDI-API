@@ -7,134 +7,7 @@ from PIL import Image
 import heapq
 from matplotlib import animation
 import imageio
-
-
-#Create a class for a scan
-#This stores all of the data for a single scan
-class Scan:
-    def __init__(self, filename):
-        #File name will have the format "XX.XXXC_V.VV.csv or in the format of "XX.XC_VV.VV.csv"
-        #Get the temperature and voltage from the file name
-        self.temperature = float(filename[0:4])
-        self.voltage = float(filename.split('_')[1].split('V.csv')[0])
-
-        print(f"Scan {self.temperature}C {self.voltage}V")
-        self.filename = filename
-        
-        self.data = np.loadtxt(filename, delimiter=',')
-        self.smoothed_data = savgol_filter(self.data, 50, 3)
-        self.smoothed_data = savgol_filter(self.smoothed_data, 50, 3)
-        self.smoothed_data = savgol_filter(self.smoothed_data, 100, 3)
-        self.maxima, self.minima = self.findLocalMaximaMinima(len(self.smoothed_data), self.smoothed_data)
-        #Check to see if there is a minima before the first maxima and if there is not the second maxima is the first maxima
-        if self.minima[0] + 25 < self.maxima[0]:
-            self.first_local_maxima = self.maxima[0]
-            self.first_local_maxima_index = 0
-        else:
-            self.first_local_maxima = self.maxima[1]
-            self.first_local_maxima_index = 1
-        
-        
-        self.average_distance_between_maximas = self.findAverageDistanceBetweenMaximas()
-
-        return
-
-    def findLocalMaximaMinima(self, n, arr):
-
-        # Empty lists to store points of
-        # local maxima and minima
-        mx = []
-        mn = []
-    
-        # Checking whether the first point is
-        # local maxima or minima or neither
-        if(arr[0] > arr[1]):
-            mx.append(0)
-        elif(arr[0] < arr[1]):
-            mn.append(0)
-    
-        # Iterating over all points to check
-        # local maxima and local minima
-        for i in range(1, n-1):
-    
-            # Condition for local minima
-            if(arr[i-1] > arr[i] < arr[i + 1]):
-                mn.append(i)
-    
-            # Condition for local maxima
-            elif(arr[i-1] < arr[i] > arr[i + 1]):
-                mx.append(i)
-    
-        # Checking whether the last point is
-        # local maxima or minima or neither
-        if(arr[-1] > arr[-2]):
-            mx.append(n-1)
-        elif(arr[-1] < arr[-2]):
-            mn.append(n-1)
-    
-            # Print all the local maxima and
-            # local minima indexes stored
-        
-        return mx, mn
-
-    #find the average distance between local maximas starting at self.first_local_maxima_index
-    def findAverageDistanceBetweenMaximas(self):
-        #create a list of the distances between the maximas
-        distances = []
-        #Exlude the last maxima because it can be a false reading. Also exclude any maxima that is less than 50 pixels away from a minima
-        for i in range(self.first_local_maxima_index, len(self.maxima)-2):
-            if self.maxima[i] - self.minima[i] > 100:
-                print(f"Maxima {i} is {self.maxima[i] - self.minima[i]} pixels away from minima {i}")
-                distances.append(self.maxima[i+1] - self.maxima[i])
-        #return the average distance between maximas
-        return np.mean(distances)
-
-    #plot the Scan data. If the calibration data is provided, plot the mercury and hydrogen position on the graph as well, if convert_to_nm is true, convert the x axis to nm
-    def plot(self,plot_smoothed = True,calibration_data = None,convert_to_nm = False, save = True, save_path = None, show = False):
-        plt.figure(figsize=(30.0, 10.0))
-        plt.plot(self.data, label = 'Raw Data')
-        if plot_smoothed:
-            plt.plot(self.smoothed_data, label = 'Smoothed Data')
-            plt.plot(self.maxima, self.smoothed_data[self.maxima], 'o', label = 'Maxima')
-            plt.plot(self.minima, self.smoothed_data[self.minima], 'o', label = 'Minima')
-            #plot the fist local maxima with a red verical line
-            plt.axvline(x = self.first_local_maxima, color = 'r', label = 'First Local Maxima')
-        if calibration_data is not None:
-            #Create a Vertical Line with a label at the Hydrogen, deuterium and Mercury Position
-            plt.axvline(x = calibration_data.Hydrogen_Pixel_Position, color = 'y', label = 'Hydrogen')
-            plt.axvline(x = calibration_data.Bromine_Pixel_Position, color = 'g', label = 'Bromine')
-            plt.axvline(x = calibration_data.Deuterium_Pixel_Position, color = 'b', label = 'Deuterium')
-
-        if convert_to_nm:
-            plt.xlabel('Wavelength (nm)')
-            #Convert the x axis to nm using Pixel Scaling and Pixel Offset            
-            plt.xticks(np.arange(0, len(self.smoothed_data), 1), np.arange(calibration_data.Pixel_Offset, len(self.smoothed_data)*calibration_data.Pixel_Scaling + calibration_data.Pixel_Offset, calibration_data.Pixel_Scaling)[:-1])
-
-            #only show 10 ticks
-            plt.locator_params(axis='x', nbins=10)
-
-        else:
-            plt.xlabel('Pixel Position')
-            #Xtick every 500 pixels
-            plt.xticks(np.arange(0, len(self.smoothed_data), 500))
-            #grid
-            plt.grid()
-        #include the distance between maximas in the top left corner
-        plt.text(0.01, 0.99, f'Average Distance Between Maximas: {str(self.findAverageDistanceBetweenMaximas())}', horizontalalignment='left', verticalalignment='top', transform=plt.gca().transAxes)
-       
-        plt.ylabel('Intensity')
-        plt.title(f'Scan at {str(self.temperature)}C {str(self.voltage)}V')
-        plt.legend()
-
-        #Plot first local maxima
-        plt.annotate(str(self.first_local_maxima), xy=(self.first_local_maxima, self.smoothed_data[self.first_local_maxima]), xytext=(self.first_local_maxima, self.smoothed_data[self.first_local_maxima]), arrowprops=dict(facecolor='black', shrink=0.05),)
-
-        if save:
-            #Save as full screen png
-            plt.savefig(f"{save_path}\\{str(self.temperature)}C_{str(self.voltage)}V.png", bbox_inches='tight')
-        if show:  
-            plt.show()
-        return
+from Scan import Scan
 
 #Create a class to store the data for each Voltage
 #This will store all of the scans that happened at this voltage
@@ -617,35 +490,6 @@ def createCSVOfVoltageSortedByPosition(temperature_scan_set: TemperatueScanSet, 
     return filename
 
 
-
-#Convert all files with extension .csv and the format of 25.602C_9.200000000000001V.csv to have the correct format of 25.602C_9.2V.csv
-def convertCSVFileNames(path):
-    #for every file in the directory
-    for file in os.listdir(path):
-        #if the file is a csv file
-        if file.endswith(".csv"):
-            #split the file name into the temperature and voltage
-            temperature, voltage = file.split("_")
-            #remove the C from the temperature
-            temperature = temperature[:-1]
-            #remove the V from the voltage
-            voltage = voltage[:-1]
-            #remove the .csv from the voltage
-            voltage = voltage[:-4]
-            #convert the voltage to a float
-            voltage = float(voltage)
-            #round the voltage to 1 decimal place
-            voltage = round(voltage, 1)
-            #add the V back to the voltage
-            voltage = str(voltage) + "V"
-            #rename the file
-            try:
-                os.rename(path + file, path + temperature + "C_" + voltage + ".csv")
-            except:
-                print(f"Failed to rename {file}")
-    return
-
-
 #Create a gif out of a list of Files
 def createGif(file_list, save_path, filename = "CorrelationsAt23.1C.gif"):
     #make a list of images
@@ -678,7 +522,20 @@ if __name__ == '__main__':
         scan = Scan(file)
         #scan.plot(plot_smoothed = True, convert_to_nm=False,show=True, save=True, save_path=l2_path)
         scans.append(scan)
+    #Create a Gif of the scan plots
+    #Get all scans With 3.0 V
+    scans = [scan for scan in scans if scan.voltage == 3.0]
+    #Sort the scans by temperature
+    scans.sort(key=lambda x: x.temperature)
+    #Create a list of the file names of the plots
+    plot_list = []
+    for scan in scans:
+        scan.plot(plot_smoothed = True, convert_to_nm=False,show=False, save=True, save_path=l2_path)
+        plot_list.append(f"{l2_path}\\{str(scan.temperature)}C_{str(scan.voltage)}V.png")
 
+
+    createGif(plot_list, l2_path, "UnCompensatedTemperatureSweep")
+    input("Press Enter to Continue")
     #Go through all the Scans and find the average distance between the local maxima
     Distance = []
     for scan in scans:
