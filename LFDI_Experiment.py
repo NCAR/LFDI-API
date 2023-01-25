@@ -1,8 +1,8 @@
 
 import numpy as np
-import LFDI_API as LFDI
+import Hardware_API.LFDI_API as LFDI
 import time
-import Spectrograph
+import Hardware_API.Spectrograph as Spectrograph
 import os
 import datetime
 from functools import partial
