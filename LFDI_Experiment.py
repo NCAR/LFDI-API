@@ -98,7 +98,7 @@ def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, st
         spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(wait_time, now, seconds_to_wait))
         for voltage in voltages:
             #Rename the spectrometers current image, graph and Crosssection with the temperature and move them to the experiment folder
-            LFDI_TCB.set_compensator_voltage(1, voltage)
+            LFDI_TCB.set_compensator_voltage(3, voltage)
             seconds_to_wait = 10
             spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(wait_time, now, seconds_to_wait))
             os.rename(spectrometer.current_image, f"{folder}/{str(temperature)}C_{voltage}V.tif")
@@ -121,7 +121,7 @@ def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, toleran
     for temperature in temperatures:
         #Set the temperature
         LFDI_TCB.set_controller_setpoint(1,temperature)
-        LFDI_TCB.set_controller_enable(True)
+        LFDI_TCB.set_controller_enable(1,True)
         #Continuously output until we reach the set point
         spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(TCB_at_temp, temperature, LFDI_TCB, tolerance))
         #Wait For the Crystal to warm through out
@@ -131,7 +131,8 @@ def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, toleran
 
         #Rename the spectrometers current image, graph and Crosssection with the temperature and move them to the experiment folder
        # os.rename(spectrometer.current_image, f"{folder}/{str(temperature)}C.tif")
-        os.rename(spectrometer.current_graph, f"{folder}/{str(temperature)}C.png")
+       # os.rename(spectrometer.current_graph, f"{folder}/{str(temperature)}C.png")
+       #Take the Current CSV from the Spectrometer
         os.rename(spectrometer.current_crosssection, f"{folder}/{str(temperature)}C.csv")
         print(f"Finished {temperature}C")
     return
@@ -174,17 +175,6 @@ def make_experiment_folder():
 
 
 
-#TO-DO Need to make a new thread to poll the LFDI Raw Data and output to a TSV file
-def get_LFDI_data(LFDI_TCB, folder):
-    #Create a file to store the data
-    file = open(f"{folder}/LFDI_Data.tsv", 'w')
-    #Write the header
-    file.write(LFDI_TCB.get_raw_data_header())
-    #Get the data
-    data = LFDI_TCB.get_info()
-    #Write the data
-    file.write(data)
-
 #Function that will guid user through the calibration process
 def calibrate_LED(spectrometer, folder):
     print("Adjust the Intensity of the LED until the signal is no longer clipping\r\nClose the Graph when adjusted")
@@ -197,6 +187,8 @@ def calibrate_LED(spectrometer, folder):
     
     return
 
+
+#Launches here
 if __name__ == "__main__":
     #Create the Spectrometer
     try:
@@ -205,7 +197,7 @@ if __name__ == "__main__":
     except:
         print("Could not connect to Spectrometer")
         exit()
-    tolerance = .5
+    
     #Create the LFDI_TCB
     try: 
         lfdi = LFDI.LFDI_TCB("COM3", 9600)
