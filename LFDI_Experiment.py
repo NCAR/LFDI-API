@@ -13,7 +13,9 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
     print(f"End Temp {end_temp}")
     print(f"Step Temp {step}")
     #Create a list of temperatures to cycle through
+    #Go from the low temperature to the high temperature then back to the low temperature
     temperatures = np.arange(start_temp, end_temp, step)
+    temperatures = np.append(temperatures, np.arange(end_temp, start_temp, -step))
     #Create a list to store the filenames of the images
     filenames = []
     #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
