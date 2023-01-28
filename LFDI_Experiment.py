@@ -7,50 +7,71 @@ import os
 import datetime
 from functools import partial
 
-
+#test out the Compensation algos at various temps and wavelengths
 def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp, end_temp, step, tolerance, folder):
     print(f"Start Temp {start_temp}")
     print(f"End Temp {end_temp}")
     print(f"Step Temp {step}")
     #Create a list of temperatures to cycle through
+    #Go from the low temperature to the high temperature then back to the low temperature
     temperatures = np.arange(start_temp, end_temp, step)
-    temperatures.append(np.arrange(end_temp, start_temp, step))
+    print(f"Temps: {temperatures}")
+    temperatures = np.append(temperatures, np.arange(end_temp, start_temp, -step))
+    print(f"Temps: {temperatures}")
+    wavelengths = np.arange(20, 490, 10)
     #Create a list to store the filenames of the images
-    filenames = []
+    filename = f"{folder}\\TCB_Out.tsv"
+    file = open(filename, "w")
+    file.write(f"{LFDI_TCB.header_format}\n")
+    file.close()
     #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
     LFDI_TCB.set_compensator_auto(3)
     LFDI_TCB.set_compensator_wavelength(3,100)
+
     LFDI_TCB.set_compensator_enable(3,True)
-    for temperature in temperatures:
-        #Set the temperature
-        LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
-        LFDI_TCB.set_controller_enable(controller_number = 1, enable = True)
-        temporal_resolution = 1*60 #1 minute
-        #Continuously output until we reach the set point
-        while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
+    for wavelength in wavelengths:
+        LFDI_TCB.set_compensator_wavelength(3,wavelength)
+        for temperature in temperatures:
+            #Set the temperature
+            LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
+            LFDI_TCB.set_controller_enable(controller_number = 1, enable = True)
+            temporal_resolution = 1*60 #1 minute
+            #Continuously output until we reach the set point
+            while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
+                now = time.time()
+                spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
+                #Take a measurement
+                #Get the Current Temp From LFDI
+                file = open(filename,"a")
+                file.write(f"{LFDI_TCB.get_info()}\n")
+                file.close()
+                current_temp = LFDI_TCB.Controllers[0].average
+                #Format the Current Temp to be a string with 2 decimal places
+                current_temp = f"{float(current_temp):.2f}"
+                os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{LFDI_TCB.Compensators[2].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[2].voltage}V.csv")
+            print(f"Reached {temperature}C")
+            print("Waiting 5 minutes")
+            #Wait For the Crystal to warm through out
             now = time.time()
-            spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
-            #Take a measurement
-            #Get the Current Temp From LFDI
-            current_temp = LFDI_TCB.Controllers[1].temp
-            #Format the Current Temp to be a string with 2 decimal places
-            current_temp = f"{float(current_temp):.2f}"
-            os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
-        print(f"Reached {temperature}C")
-        print("Waiting 5 minutes")
-        #Wait For the Crystal to warm through out
-        now = time.time()
-        seconds_to_wait = 300
-        while not wait_time(now, seconds_to_wait):
-            current_time = time.time()
-            spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
-            current_temp = LFDI_TCB.Controllers[0].average
-            #Format the Current Temp to be a string with 2 decimal places
-            current_temp = f"{float(current_temp):.2f}"
-            os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
-        print("Finished Waiting")
-        print(f"Finished {temperature}C")
+            seconds_to_wait = 300
+            while not wait_time(now, seconds_to_wait):
+                current_time = time.time()
+                spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
+                file = open(filename, "a")
+                file.write(f"{LFDI_TCB.get_info()}\n")
+                file.close()
+                current_temp = LFDI_TCB.Controllers[0].average
+                #Format the Current Temp to be a string with 2 decimal places
+                current_temp = f"{float(current_temp):.2f}"
+                os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{LFDI_TCB.Compensators[2].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[2].voltage}V.csv")
+            print("Finished Waiting")
+            print(f"Finished {temperature}C")
+        print(f"Finished {wavelength}Pos")
     return
+
+
+
+
 #Sweep the temperature of the TCB and the Voltage applied from the DAC; take an image at each state
 def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp: float, end_temp: float, step_temp:float ,start_voltage:float, end_voltage:float, step_voltage:float, tolerance:float, folder:os.path):
     print(f"Start Temp {start_temp}")
@@ -221,5 +242,5 @@ if __name__ == "__main__":
     
     #Cycle through the temperatures
     #SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
-    Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, .5, tolerance=0.1, folder=folder)
+    Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
     
