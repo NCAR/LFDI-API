@@ -1,4 +1,16 @@
 #Connect to the LFDI TCB through a serial port
+#Creates Commands and executes in the following manner
+#User wants to set controller 1's set point:
+#lfdi.set_controller_setpoint(1, 25)
+#serial Send commands
+#'controller' -- go to the controller context menu
+#'c1' -- select controller 1
+#'t25' -- set the controller to 25
+#'m' -- return to the main menu
+
+
+#This software is currently still a WIP its not uncommon for the system to desync or send bad commands
+#I think this is due to a number of reasons. The host machine for this software is scanning com ports which can intercept some data and cause desync issues
 import serial
 from time import sleep
 from time import time
@@ -7,6 +19,9 @@ import time
 from datetime import datetime
 
 
+#This is the Controller Class Mostly used as a data class
+# All data for the Controllers are stored here and will be polled for LFDI's get info class
+# This will also compose commands for the TCB 
 class Controller(object):
 
     def __init__(self, number):
@@ -151,6 +166,7 @@ class Compensator(object):
         info = f"Comp{self.number}\t{self.voltage}\t{self.wave}\t{self.temp}\t{self.avg}\t{self.auto}\t{self.useAverage}\t{self.i2c}\t{self.enabled}\t{self.sensor}"
         return info
 
+
 class LFDI_TCB(object):
 
 
@@ -179,6 +195,8 @@ class LFDI_TCB(object):
         self.ser.flushInput()
         self.ser.flushOutput()
         return
+
+
     def __del__(self):
         #Disable all controllers
         for controller in self.Controllers:
@@ -217,7 +235,7 @@ class LFDI_TCB(object):
         if print_command:
             print(f"{command}")
         self.ser.write(f"{command}\r".encode('utf-8'))
-        sleep(.25)
+        sleep(.5)
         try:
             val = self.ser.read_all().decode('utf-8', errors = 'ignore')
             if "Unknown Command" not in val:

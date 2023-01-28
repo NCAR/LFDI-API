@@ -18,7 +18,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
     print(f"Temps: {temperatures}")
     temperatures = np.append(temperatures, np.arange(end_temp, start_temp, -step))
     print(f"Temps: {temperatures}")
-    wavelengths = np.arange(20, 490, 10)
+    wavelengths = np.arange(20, 420, 50)
     #Create a list to store the filenames of the images
     filename = f"{folder}\\TCB_Out.tsv"
     file = open(filename, "w")
@@ -164,7 +164,7 @@ def TCB_at_temp(temp, LFDI_TCB, tolerance):
         return False
     
     #Check if the current temperature is within the tolerance of the set point
-    print(f"Sensor at {current_temp} waiting for {(temp - tolerance)}")
+    print(f"Sensor at {current_temp} waiting for {(temp - tolerance)} - {(temp + tolerance)}")
     if (current_temp > (temp - tolerance)) and (current_temp < (temp + tolerance)):
         return True
     else:
