@@ -219,7 +219,11 @@ class LFDI_TCB(object):
         self.ser.write(f"{command}\r".encode('utf-8'))
         sleep(.25)
         try:
-            return self.ser.read_all().decode('utf-8', errors = 'ignore')
+            val = self.ser.read_all().decode('utf-8', errors = 'ignore')
+            if "Unknown Command" not in val:
+                return val
+            print("Desync in sending")
+            self.send_command(command, print_command) 
         except:
             print(f"Lost Connection With port")
             self.ser.close()
