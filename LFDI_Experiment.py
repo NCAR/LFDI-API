@@ -14,9 +14,13 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
     print(f"Step Temp {step}")
     #Create a list of temperatures to cycle through
     temperatures = np.arange(start_temp, end_temp, step)
+    temperatures.append(np.arrange(end_temp, start_temp, step))
     #Create a list to store the filenames of the images
     filenames = []
     #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
+    LFDI_TCB.set_compensator_auto(3)
+    LFDI_TCB.set_compensator_wavelength(3,100)
+    LFDI_TCB.set_compensator_enable(3,True)
     for temperature in temperatures:
         #Set the temperature
         LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
@@ -28,7 +32,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
             #Take a measurement
             #Get the Current Temp From LFDI
-            current_temp = LFDI_TCB.Controllers[1].temp().strip(' ')
+            current_temp = LFDI_TCB.Controllers[1].temp
             #Format the Current Temp to be a string with 2 decimal places
             current_temp = f"{float(current_temp):.2f}"
             os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
@@ -40,7 +44,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
         while not wait_time(now, seconds_to_wait):
             current_time = time.time()
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
-            current_temp = LFDI_TCB.get_average_temperature().strip(' ')
+            current_temp = LFDI_TCB.Controllers[0].average
             #Format the Current Temp to be a string with 2 decimal places
             current_temp = f"{float(current_temp):.2f}"
             os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
@@ -63,8 +67,8 @@ def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, st
     #Cycle through the temperatures
     for temperature in temperatures:
         #Set the temperature
-        LFDI_TCB.set_target_temperature(temperature)
-        LFDI_TCB.set_enable(True)
+        LFDI_TCB.set_controller_setpoint(1, temperature)
+        LFDI_TCB.set_controller_enable(1, True)
         #Continuously output until we reach the set point
         spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(TCB_at_temp, temperature, LFDI_TCB, tolerance))
         #Wait For the Crystal to warm through out
@@ -73,7 +77,7 @@ def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, st
         spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(wait_time, now, seconds_to_wait))
         for voltage in voltages:
             #Rename the spectrometers current image, graph and Crosssection with the temperature and move them to the experiment folder
-            lfdi.set_DAC(0, voltage)
+            LFDI_TCB.set_compensator_voltage(1, voltage)
             seconds_to_wait = 10
             spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(wait_time, now, seconds_to_wait))
             os.rename(spectrometer.current_image, f"{folder}/{str(temperature)}C_{voltage}V.tif")
@@ -95,8 +99,8 @@ def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, toleran
     #Cycle through the temperatures
     for temperature in temperatures:
         #Set the temperature
-        LFDI_TCB.set_target_temperature(temperature)
-        LFDI_TCB.set_enable(True)
+        LFDI_TCB.set_controller_setpoint(1,temperature)
+        LFDI_TCB.set_controller_enable(True)
         #Continuously output until we reach the set point
         spectrometer.continuous_output(refresh_rate=0.5, end_trigger=partial(TCB_at_temp, temperature, LFDI_TCB, tolerance))
         #Wait For the Crystal to warm through out
@@ -122,10 +126,10 @@ def wait_time(start, wait_time):
         return False
 
 #Check to see if the TCB temp is at the set point
-def TCB_at_temp(temp, TCB, tolerance):
+def TCB_at_temp(temp, LFDI_TCB, tolerance):
     #Get the current temperature
     try:
-        current_temp = float(TCB.get_average_temperature())
+        current_temp = float(LFDI_TCB.Controllers[0].average)
     except ValueError as e:
         print(f"Value Error {e} board request may have desynced")
         return False
@@ -156,7 +160,7 @@ def get_LFDI_data(LFDI_TCB, folder):
     #Write the header
     file.write(LFDI_TCB.get_raw_data_header())
     #Get the data
-    data = LFDI_TCB.get_raw_data()
+    data = LFDI_TCB.get_info()
     #Write the data
     file.write(data)
 
@@ -202,7 +206,7 @@ if __name__ == "__main__":
         #Update all the information we have on the Computer
         lfdi.get_info()
         while ambient_temperature is None:
-            ambient_temperature = lfdi.Controllers[0].average()
+            ambient_temperature = lfdi.Controllers[0].average
             time.sleep(1)
             lfdi.get_info()
         print(f"Ambient Temperature: {ambient_temperature}C")

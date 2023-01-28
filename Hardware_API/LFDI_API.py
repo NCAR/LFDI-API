@@ -4,7 +4,7 @@ from time import sleep
 from time import time
 from time import strftime
 import time
-import datetime
+from datetime import datetime
 
 
 class Controller(object):
@@ -27,6 +27,7 @@ class Controller(object):
         self.frequency = 0
         self.sensor = 0
         self.header = "Cont\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor"
+        
         return
 
 
@@ -34,21 +35,28 @@ class Controller(object):
         return
 
     def update_data(self, data):
-        self.kp = data[1]
-        self.kd = data[2]
-        self.ki = data[3]
-        self.error_p = data[4]
-        self.error_d = data[5]
-        self.error_i = data[6]
-        self.effort = data[7]
-        self.temp = data[8]
-        self.average = data[9]
-        self.setpoint = data[10]
-        self.i2c = data[11]
-        self.history = data[12]
-        self.frequency = data[13]
-        self.enabled = data[14]
-        self.sensor = data[15]
+        try:
+            self.kp = float(data[1].strip(' '))
+            self.kd = float(data[2].strip(' '))
+            self.ki = float(data[3].strip(' '))
+            self.error_p = float(data[4].strip(' '))
+            self.error_d = float(data[5].strip(' '))
+            self.error_i = float(data[6].strip(' '))
+            self.effort = float(data[7].strip(' '))
+            self.temp = float(data[8].strip(' ').strip('C'))
+            self.average = float(data[9].strip(' ').strip('C'))
+            #bad Way of doing this but will work for now
+            try:
+                self.setpoint = float(data[10].strip(' ').strip('C'))
+            except:
+                self.setpoint = data[10]
+            self.i2c = data[11].strip(' ')
+            self.history = float(data[12].strip(' '))
+            self.frequency = float(data[13].strip(' '))
+            self.enabled = data[14].strip(' ')
+            self.sensor = data[15].strip(' ')
+        except:
+            print("Could not parse Controller Data")
         return
 
     def get_kp_command(self, kp:float):
@@ -66,7 +74,7 @@ class Controller(object):
             return "d"
     def get_i2c_command(self, i2c:int):
         return f"a{i2c}"
-    def get_history_command(self, history:int):
+    def get_hist_command(self, history:int):
         return f"h{history}"
     def get_frequency_command(self, frequency:int):
         return f"f{frequency}"
@@ -104,8 +112,8 @@ class Compensator(object):
     def update_data(self, data):
         self.voltage = data[1]
         self.wave = data[2]
-        self.temp = data[3]
-        self.avg = data[4]
+        self.temp = float(data[3].strip(' ').strip("C"))
+        self.avg = float(data[4].strip(" ").strip('C'))
         self.auto = data[5]
         self.useAverage = data[6]
         self.i2c = data[7]
@@ -149,9 +157,7 @@ class LFDI_TCB(object):
     def __init__(self, com_port, baud_rate):
         self.com_port = com_port
         self.baud_rate = baud_rate
-        self.ser = serial.Serial(self.com_port, self.baud_rate)
-        self.ser.flushInput()
-        self.ser.flushOutput()
+        self.OpenConnection()
         self.ser.timeout = 1
         self.ser.write_timeout = 1
         
@@ -168,6 +174,11 @@ class LFDI_TCB(object):
         for compensator in self.Compensators:
             self.header_format += f"{compensator.header}\t"
 
+    def OpenConnection(self):
+        self.ser = serial.Serial(self.com_port, self.baud_rate, timeout = 2)
+        self.ser.flushInput()
+        self.ser.flushOutput()
+        return
     def __del__(self):
         #Disable all controllers
         for controller in self.Controllers:
@@ -185,9 +196,9 @@ class LFDI_TCB(object):
         if context not in self.valid_contexts:
             print(f"Context {context} is not valid")
             return
-        if self.current_context is not "main":
+        if self.current_context != "main":
             #Go back to main
-            self.send_command("b")
+            self.send_command("m")
 
         #if we are going to main we are there
         if context == "main":
@@ -200,13 +211,19 @@ class LFDI_TCB(object):
         return
 
     #Sends Command to the Controller
-    def send_command(self, command):
+    def send_command(self, command, print_command = True):
         self.ser.flushInput()
         self.ser.flushOutput()
+        if print_command:
+            print(f"{command}")
         self.ser.write(f"{command}\r".encode('utf-8'))
-        sleep(.5)
-        return self.ser.read_all().decode('utf-8')
-
+        sleep(.25)
+        try:
+            return self.ser.read_all().decode('utf-8', errors = 'ignore')
+        except:
+            print(f"Lost Connection With port")
+            self.ser.close()
+            self.OpenConnection()
 
     #Set the Compensator Voltage
     def set_compensator_voltage(self, compensator_number:int, voltage:float):
@@ -219,7 +236,7 @@ class LFDI_TCB(object):
     #Set the Compensator compensate
     def toggle_compensator_auto(self, compensator_number):
         self.change_context("compensator")
-        self.send_command(f"c{compensator_number}")
+        print(self.send_command(f"c{compensator_number}"))
         print(self.send_command(self.Compensators[compensator_number-1].get_auto_command()))
         self.change_context("main")
         return
@@ -365,17 +382,17 @@ class LFDI_TCB(object):
         return
 
     #set the Compensator Auto
-    def set_compensator_auto(self, compensator_number, auto:bool):
+    def set_compensator_auto(self, compensator_number):
         self.change_context("compensator")
-        self.send_command(f"m{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command(auto)))
+        self.send_command(f"c{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command()))
         self.change_context("main")
         return
 
     #set the Compensator Voltage
     def set_compensator_voltage(self, compensator_number, voltage):
         self.change_context("compensator")
-        self.send_command(f"m{compensator_number}")
+        self.send_command(f"c{compensator_number}")
         print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage)))
         self.change_context("main")
         return
@@ -383,7 +400,7 @@ class LFDI_TCB(object):
     #set the Compensator Wavelength
     def set_compensator_wavelength(self, compensator_number, wavelength):
         self.change_context("compensator")
-        self.send_command(f"m{compensator_number}")
+        self.send_command(f"c{compensator_number}")
         print(self.send_command(self.Compensators[compensator_number-1].get_wavelength_command(wavelength)))
         self.change_context("main")
         return
@@ -391,15 +408,17 @@ class LFDI_TCB(object):
     #set the Compensator i2c address
     def set_compensator_i2c(self, compensator_number, i2c):
         self.change_context("compensator")
-        self.send_command(f"m{compensator_number}")
+        self.send_command(f"c{compensator_number}")
         print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c)))
         self.change_context("main")
         return
     
     #set the Compensator enable
     def set_compensator_enable(self, compensator_number, enable:bool):
+        if not enable:
+            self.set_compensator_voltage(compensator_number=compensator_number, voltage=0)
         self.change_context("compensator")
-        self.send_command(f"m{compensator_number}")
+        self.send_command(f"c{compensator_number}")
         print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable)))
         self.change_context("main")
         return
@@ -419,11 +438,13 @@ class LFDI_TCB(object):
     #parse the Controller data and update the Controller
     def parse_controller_data(self, raw_data:list[str]):
         #For each line in the data find the Controller and update the data
+
         for line in raw_data:
             terms = line.split("\t")
+            
             #Go through each Controller and check if the line is for that Controller
             for controller in self.Controllers:
-                if controller.number in terms[0]:
+                if str(controller.number) in terms[0]:
                     controller.update_data(terms)
                     break
         return
@@ -434,8 +455,9 @@ class LFDI_TCB(object):
         for line in raw_data:
             terms = line.split("\t")
             #Go through each Compensator and check if the line is for that Compensator
+            
             for compensator in self.Compensators:
-                if compensator.number in terms[0]:
+                if str(compensator.number) in terms[0]:
                     compensator.update_data(terms)
                     break
         return
@@ -444,7 +466,9 @@ class LFDI_TCB(object):
     def parse_raw_data(self, raw_data:str):
         try:
             #remove the first row which is the header
+            
             raw_data = raw_data.split("\n")
+            
             #Find the line that contains the header of the Controller
             for i in range(len(raw_data)):
                 if self.Controllers[0].header in raw_data[i]:
@@ -486,12 +510,13 @@ class LFDI_TCB(object):
         #make a string wilth all the info
         #Get the Current Date Time in tab seperated format
         info = datetime.now().strftime("%m/%d/%Y\t%H:%M:%S")
+        info = info + '\t'
         #Get the info from all the controllers
         for controller in self.Controllers:
-            info += controller.get_info()
+            info += controller.get_info() + '\t'
         #Get the info from all the compensators
         for compensator in self.Compensators:
-            info += compensator.get_info()
+            info += compensator.get_info() + '\t'
         return info
 
 
@@ -499,6 +524,43 @@ class LFDI_TCB(object):
 
 #Example Code
 if __name__ == "__main__":
+    #Test Functionality
+    lfdi = LFDI_TCB("COM3", 9600)
+
+    #Test Header
+    file = open('Test.tsv', "w")
+    file.write(f"{lfdi.header_format}\n")
+    file.write(f"{lfdi.get_info()}\n")
+    file.close()
+
+    #Test the Controller
+    # lfdi.set_controller_kp(1, 1)
+    # lfdi.set_controller_ki(1, 1)
+    # lfdi.set_controller_kd(1, 1)
+    # lfdi.set_controller_setpoint(1, 25)
+    # lfdi.set_controller_frequency(1,200)
+    # lfdi.set_controller_hist(1,26)
+    # lfdi.set_controller_i2c(1,0)
+    # lfdi.set_controller_enable(1,True)
+    # file = open('Test.tsv', "a")
+    # file.write(f"{lfdi.get_info()}\n")
+    # file.close()
+
+    for compensator in lfdi.Compensators:
+        lfdi.set_compensator_i2c(compensator.number,00)
+        lfdi.set_compensator_voltage(compensator.number,10)
+        lfdi.set_compensator_wavelength(compensator.number,100)
+        lfdi.set_compensator_enable(compensator.number, True)
+        file = open('Test.tsv', "a")
+        file.write(f"{lfdi.get_info()}\n")
+        file.close()
+
+    exit()
+    
+
+
+
+
 
     #Prompt the user to set a temperature
     temp = input("Enter a set point temperature: ")
