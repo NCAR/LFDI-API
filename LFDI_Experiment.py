@@ -25,12 +25,18 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
     file.write(f"{LFDI_TCB.header_format}\n")
     file.close()
     #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
+    #Turn on the Auto Compensator Algo on compensator 3
     LFDI_TCB.set_compensator_auto(3)
+    #Dummy wave to hold in place
     LFDI_TCB.set_compensator_wavelength(3,100)
-
+    #Enable the Compensator
     LFDI_TCB.set_compensator_enable(3,True)
+    
+    #Go through all of our wavelengths
     for wavelength in wavelengths:
+        #Set the Compensator to the current wavelength
         LFDI_TCB.set_compensator_wavelength(3,wavelength)
+        #Go through the temperatures
         for temperature in temperatures:
             #Set the temperature
             LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
@@ -38,6 +44,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
             temporal_resolution = 1*60 #1 minute
             #Continuously output until we reach the set point
             while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
+                #Get the Current time and output the spectrograph for a minute
                 now = time.time()
                 spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
                 #Take a measurement
@@ -53,7 +60,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
             print("Waiting 5 minutes")
             #Wait For the Crystal to warm through out
             now = time.time()
-            seconds_to_wait = 300
+            seconds_to_wait = 300 #wait for 5 min
             while not wait_time(now, seconds_to_wait):
                 current_time = time.time()
                 spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
