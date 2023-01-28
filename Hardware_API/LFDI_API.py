@@ -4,7 +4,144 @@ from time import sleep
 from time import time
 from time import strftime
 import time
+import datetime
 
+
+class Controller(object):
+
+    def __init__(self, number):
+        self.number = number
+        self.kp = 0
+        self.ki = 0
+        self.kd = 0
+        self.error_p = 0
+        self.error_d = 0
+        self.error_i = 0
+        self.effort = 0
+        self.temp = 0
+        self.average = 0
+        self.enabled = False
+        self.setpoint = 0
+        self.i2c = 0
+        self.history = 0
+        self.frequency = 0
+        self.sensor = 0
+        self.header = "Cont\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor"
+        return
+
+
+    def __del__(self):
+        return
+
+    def update_data(self, data):
+        self.kp = data[1]
+        self.kd = data[2]
+        self.ki = data[3]
+        self.error_p = data[4]
+        self.error_d = data[5]
+        self.error_i = data[6]
+        self.effort = data[7]
+        self.temp = data[8]
+        self.average = data[9]
+        self.setpoint = data[10]
+        self.i2c = data[11]
+        self.history = data[12]
+        self.frequency = data[13]
+        self.enabled = data[14]
+        self.sensor = data[15]
+        return
+
+    def get_kp_command(self, kp:float):
+        return f"p{kp}"
+    def get_ki_command(self, ki:float):
+        return f"i{ki}"
+    def get_kd_command(self, kd:float):
+        return f"d{kd}"
+    def get_setpoint_command(self, setpoint:float):
+        return f"t{setpoint}"
+    def get_enable_command(self, enable:bool):
+        if enable:
+            return "e"
+        else:
+            return "d"
+    def get_i2c_command(self, i2c:int):
+        return f"a{i2c}"
+    def get_history_command(self, history:int):
+        return f"h{history}"
+    def get_frequency_command(self, frequency:int):
+        return f"f{frequency}"
+
+    def get_raw_data_command(self):
+        return "r"
+
+    #get info Tab separated in the format of the header
+    def get_info(self):
+        info = f"Cont{self.number}\t{self.kp}\t{self.kd}\t{self.ki}\t{self.error_p}\t{self.error_d}\t{self.error_i}\t{self.effort}\t{self.temp}\t{self.average}\t{self.setpoint}\t{self.i2c}\t{self.history}\t{self.frequency}\t{self.enabled}\t{self.sensor}"
+        return info
+        
+
+class Compensator(object):
+
+
+    def __init__(self, number):
+        self.number = number
+        self.header = "Comp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor"
+        self.voltage = 0
+        self.wave = 0
+        self.temp = 0
+        self.avg = 0
+        self.auto = False
+        self.useAverage = False
+        self.i2c = 0
+        self.enabled = False
+        self.sensor = 0
+        return
+
+    def __del__(self):
+
+        return
+
+    def update_data(self, data):
+        self.voltage = data[1]
+        self.wave = data[2]
+        self.temp = data[3]
+        self.avg = data[4]
+        self.auto = data[5]
+        self.useAverage = data[6]
+        self.i2c = data[7]
+        self.enabled = data[8]
+        self.sensor = data[9]
+        return
+
+    def get_voltage_command(self, voltage):
+        return f"v{voltage}"
+
+    def get_enable_command(self, enable):
+        if enable:
+            return "e"
+        else:
+            return "d"
+        
+    def get_auto_command(self):
+        return "comp"
+        
+    def get_useAverage_command(self, useAverage):
+        #not implemented
+        return 
+    
+    def get_i2c_command(self, i2c):
+        return f"a{i2c}"
+
+    def get_raw_data_command(self):
+        return "r"
+    
+    def get_wavelength_command(self, wavelength):
+        return f"w{wavelength}"
+    
+    #Get the info in tab separated format
+    def get_info(self):
+        info = f"Comp{self.number}\t{self.voltage}\t{self.wave}\t{self.temp}\t{self.avg}\t{self.auto}\t{self.useAverage}\t{self.i2c}\t{self.enabled}\t{self.sensor}"
+        return info
 
 class LFDI_TCB(object):
 
@@ -17,14 +154,52 @@ class LFDI_TCB(object):
         self.ser.flushOutput()
         self.ser.timeout = 1
         self.ser.write_timeout = 1
-        self.header_format = "Date\tTime\tChan\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\r\n"
-        self.send_command("c1")
         
+        self.Controllers = [Controller(1)]
+        self.Compensators = [Compensator(1), Compensator(2), Compensator(3), Compensator(4), Compensator(5), Compensator(6)]
+        self.current_context = "main"
+        self.valid_contexts = ["main", "controller", "compensator"]
+        
+        self.header_format = f"Date\tTime\t"
+        #add controller headers
+        for controller in self.Controllers:
+            self.header_format += f"{controller.header}\t"
+        #add compensator headers
+        for compensator in self.Compensators:
+            self.header_format += f"{compensator.header}\t"
+
     def __del__(self):
-        print(self.set_enable(False))
+        #Disable all controllers
+        for controller in self.Controllers:
+            self.set_controller_enable(controller.number, False)
+        #Disable all compensators
+        for compensator in self.Compensators:
+            self.set_compensator_enable(compensator.number, False)
         self.ser.close()
         print("LFDI_TCB closed")
 
+
+    #Switches the Context Menu of the TCB
+    def change_context(self, context:str):
+        context = context.lower()
+        if context not in self.valid_contexts:
+            print(f"Context {context} is not valid")
+            return
+        if self.current_context is not "main":
+            #Go back to main
+            self.send_command("b")
+
+        #if we are going to main we are there
+        if context == "main":
+            self.current_context = context
+            return
+        
+        #Go to the context
+        self.send_command(context)
+        self.current_context = context
+        return
+
+    #Sends Command to the Controller
     def send_command(self, command):
         self.ser.flushInput()
         self.ser.flushOutput()
@@ -33,120 +208,296 @@ class LFDI_TCB(object):
         return self.ser.read_all().decode('utf-8')
 
 
-    #Set the DAC output voltage Peak2Peak
-    def set_DAC(self,DAC_Selection,voltage):
-        #Check to see if the number can be converted into a float between 0 and 20
-        try:
-            voltage = float(voltage)
-            if voltage > 20 or voltage < 0:
-                print("Voltage must be between 0 and 20")
-                return
-        except:
-            print("Voltage must be a number")
-            return
-        #Check to see if the number can be converted into an integer between 0 and 5
-        try:
-            DAC_Selection = int(DAC_Selection)
-            if DAC_Selection > 5 or DAC_Selection < 0:
-                print("DAC_Selection must be between 0 and 5")
-                return
-        except:
-            print("DAC_Selection must be an integer")
-            return
+    #Set the Compensator Voltage
+    def set_compensator_voltage(self, compensator_number:int, voltage:float):
+        self.change_context("compensator")
+        self.send_command(f"c{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage)))
+        self.change_context("main")
+        return
 
-        return self.send_command(f"v{voltage}")
+    #Set the Compensator compensate
+    def toggle_compensator_auto(self, compensator_number):
+        self.change_context("compensator")
+        self.send_command(f"c{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command()))
+        self.change_context("main")
+        return
 
+    def set_compensator_useAverage(self, compensator_number, useAverage):
+        print("Not Implemented")
+        return
 
-    #Get the DAC output voltage Peak2Peak
-    def get_DAC(self,DAC_Selection):
-        #Check to see if the number can be converted into an integer between 0 and 5
-        try:
-            DAC_Selection = int(DAC_Selection)
-            if DAC_Selection > 5 or DAC_Selection < 0:
-                print("DAC_Selection must be between 0 and 5")
-                return
-        except:
-            print("DAC_Selection must be an integer")
-            return
-        return self.send_command(f"v{DAC_Selection}")
-   
-    #Enable the DAC output
-    def enable_DAC(self,DAC_Selection, enable):
-        #Check to see if the number can be converted into an integer between 0 and 5
-        try:
-            DAC_Selection = int(DAC_Selection)
-            if DAC_Selection > 5 or DAC_Selection < 0:
-                print("DAC_Selection must be between 0 and 5")
-                return
-        except:
-            print("DAC_Selection must be an integer")
-            return
+    #Set the Compensator i2c address
+    def set_compensator_i2c(self, compensator_number, i2c):
+        self.change_context("compensator")
+        self.send_command(f"c{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c)))
+        self.change_context("main")
+        return
+    
+    #Set the Compensator enable
+    def set_compensator_enable(self, compensator_number, enable):
+        self.change_context("compensator")
+        self.send_command(f"c{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable)))
+        self.change_context("main")
+        return
+    
+    #Set the Controller enable
+    def set_controller_enable(self, controller_number, enable):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable)))
+        self.change_context("main")
+        return
+    
+    #Set the Controller i2c address
+    def set_controller_i2c(self, controller_number, i2c):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c)))
+        self.change_context("main")
+        return
+    
+    #Set the Controller Kp
+    def set_controller_kp(self, controller_number, kp):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_kp_command(kp)))
+        self.change_context("main")
+        return
+    
+    #Set the Controller Ki
+    def set_controller_ki(self, controller_number, ki):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_ki_command(ki)))
+        self.change_context("main")
+        return
+    
+    #Set the Controller Kd
+    def set_controller_kd(self, controller_number, kd):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_kd_command(kd)))
+        self.change_context("main")
+        return
 
-        if enable:
-            return self.send_command(f"e{DAC_Selection}")
-        else:
-            return self.send_command(f"d{DAC_Selection}")
+    #Set the Controller hist
+    def set_controller_hist(self, controller_number, hist):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_hist_command(hist)))
+        self.change_context("main")
+        return
+    
+    #set the Conteller frequency
+    def set_controller_frequency(self, controller_number, frequency):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_frequency_command(frequency)))
+        self.change_context("main")
+        return
+
+    #set the Controller kp
+    def set_controller_kp(self, controller_number, kp):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_kp_command(kp)))
+        self.change_context("main")
+        return
+    
+    #set the Controller ki
+    def set_controller_ki(self, controller_number, ki):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_ki_command(ki)))
+        self.change_context("main")
+        return
+
+    #set the Controller kd
+    def set_controller_kd(self, controller_number, kd):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_kd_command(kd)))
+        self.change_context("main")
+        return
+    
+    #set the Controller hist
+    def set_controller_hist(self, controller_number, hist):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_hist_command(hist)))
+        self.change_context("main")
+        return
+
+    #set the Controller frequency
+    def set_controller_frequency(self, controller_number, frequency):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_frequency_command(frequency)))
+        self.change_context("main")
+        return
+
+    #set the Controller setpoint
+    def set_controller_setpoint(self, controller_number, setpoint):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_setpoint_command(setpoint)))
+        self.change_context("main")
+        return
         
-    #Get the Average Temperature
-    def get_average_temperature(self):
-        try:
-            data = self.parse_raw_data(self.read_raw_data())
-            return data[9].strip('C')
-        except:
-            print(f"Error With Call")
-            return None
+    #set the Controller i2c address
+    def set_controller_i2c(self, controller_number, i2c):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c)))
+        self.change_context("main")
+        return
 
-    #Get the Target Temperature
-    def get_target_temperature(self):
-        data = self.parse_raw_data(self.read_raw_data())
-        return data[10].strip('C')
+    #Set the Controller enable
+    def set_controller_enable(self, controller_number, enable:bool):
+        self.change_context("controller")
+        self.send_command(f"c{controller_number}")
+        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable)))
+        self.change_context("main")
+        return
 
-    #Set the Target Temperature
-    def set_target_temperature(self, temperature):
-        return self.send_command("t" + str(temperature))
+    #set the Compensator Auto
+    def set_compensator_auto(self, compensator_number, auto:bool):
+        self.change_context("compensator")
+        self.send_command(f"m{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command(auto)))
+        self.change_context("main")
+        return
 
-    def get_help(self):
-        return self.send_command("help")
+    #set the Compensator Voltage
+    def set_compensator_voltage(self, compensator_number, voltage):
+        self.change_context("compensator")
+        self.send_command(f"m{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage)))
+        self.change_context("main")
+        return
+
+    #set the Compensator Wavelength
+    def set_compensator_wavelength(self, compensator_number, wavelength):
+        self.change_context("compensator")
+        self.send_command(f"m{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_wavelength_command(wavelength)))
+        self.change_context("main")
+        return
+
+    #set the Compensator i2c address
+    def set_compensator_i2c(self, compensator_number, i2c):
+        self.change_context("compensator")
+        self.send_command(f"m{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c)))
+        self.change_context("main")
+        return
     
-    #Enable or Disable the Heater
-    def set_enable(self, enable):
-        if enable:
-            return self.send_command("e")
-        else:
-            return self.send_command("d")
+    #set the Compensator enable
+    def set_compensator_enable(self, compensator_number, enable:bool):
+        self.change_context("compensator")
+        self.send_command(f"m{compensator_number}")
+        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable)))
+        self.change_context("main")
+        return
     
-    #Set the PID Values
-    def set_kp(self, kp):
-        return self.send_command("p" + str(kp))
-    def set_ki(self, ki):
-        return self.send_command("i" + str(ki))
-    def set_kd(self, kd):
-        return self.send_command("d" + str(kd))
-    
-    #Set the I2C Address of the temp Sensor to use for the PID Loop
-    def set_setI2C_Add(self, add):
-        return self.send_command("a" + str(add))
-    
-    #Set the Frequency of the PWM Signal
-    def set_frequency(self, frequency):
-        return self.send_command("f" + str(frequency))
+    #reset the TCB
+    def reset(self):
+        self.send_command("bounce")
+        sleep(10)
+        return
+
     
     #Request the Raw Data from the TCB
     def read_raw_data(self):
         return self.send_command("r")
-    
-    #Parse the Raw Data. Data Comes in as a string that is tab seperated into 16 columns the Header is the first row
-    def parse_raw_data(self, raw_data):
+
+
+    #parse the Controller data and update the Controller
+    def parse_controller_data(self, raw_data:list[str]):
+        #For each line in the data find the Controller and update the data
+        for line in raw_data:
+            terms = line.split("\t")
+            #Go through each Controller and check if the line is for that Controller
+            for controller in self.Controllers:
+                if controller.number in terms[0]:
+                    controller.update_data(terms)
+                    break
+        return
+
+    #parse the Compensator data and update the Compensator
+    def parse_compensator_data(self, raw_data:list[str]):
+        #For each line in the data find the Compensator and update the data
+        for line in raw_data:
+            terms = line.split("\t")
+            #Go through each Compensator and check if the line is for that Compensator
+            for compensator in self.Compensators:
+                if compensator.number in terms[0]:
+                    compensator.update_data(terms)
+                    break
+        return
+
+    #Parse the Raw Data. 
+    def parse_raw_data(self, raw_data:str):
         try:
-            raw_data = self.read_raw_data()
             #remove the first row which is the header
             raw_data = raw_data.split("\n")
-            raw_data = raw_data[1].split("\t")
-            return(raw_data)
+            #Find the line that contains the header of the Controller
+            for i in range(len(raw_data)):
+                if self.Controllers[0].header in raw_data[i]:
+                    break
+            ControllerHeaderLine = i
+            #Find the line that contains the header of the Compensator
+            for i in range(len(raw_data)):
+                if self.Compensators[0].header in raw_data[i]:
+                    break
+            CompensatorHeaderLine = i
+            
+            #Get all the lines between the Controller and Compensator Header
+            controller_raw_data = raw_data[ControllerHeaderLine+1:CompensatorHeaderLine]
+            self.parse_controller_data(controller_raw_data)
+
+            #Get all the lines between the Compensator and the end of the file
+            compensator_raw_data = raw_data[CompensatorHeaderLine+1:]
+            self.parse_compensator_data(compensator_raw_data)
+
+            return 0
+
         except IndexError as e:
             print(f"possible Desync Error with TCB output {e}")
             return(-1)
 
+    #get the data from the TCB
+    def update_data(self):
+        #Get the Raw Data
+        raw_data = self.read_raw_data()
+        #Parse the Raw Data
+        self.parse_raw_data(raw_data)
+        return
+    
+    #return a crap ton of info in string format    
+    def get_info(self):
+        #Update all the Data
+        self.change_context("main")
+        self.update_data()
+        #make a string wilth all the info
+        #Get the Current Date Time in tab seperated format
+        info = datetime.now().strftime("%m/%d/%Y\t%H:%M:%S")
+        #Get the info from all the controllers
+        for controller in self.Controllers:
+            info += controller.get_info()
+        #Get the info from all the compensators
+        for compensator in self.Compensators:
+            info += compensator.get_info()
+        return info
+
+
+
+
+#Example Code
 if __name__ == "__main__":
 
     #Prompt the user to set a temperature
@@ -171,11 +522,11 @@ if __name__ == "__main__":
         print("Could not connect to LFDI_TCB")
         exit()
     #Set the temperature
-    print(lfdi.set_target_temperature(temp))
+    print(lfdi.set_controller_setpoint(1,temp))
     #Set the PID values
-    print(lfdi.set_kp(kp))
-    print(lfdi.set_ki(ki))
-    print(lfdi.set_kd(kd))
+    print(lfdi.set_controller_kp(1,kp))
+    print(lfdi.set_controller_ki(1,ki))
+    print(lfdi.set_controller_kd(1,kd))
     
 
     #Open the file
@@ -186,27 +537,27 @@ if __name__ == "__main__":
     #Print Information to the User
     print("Starting Data Collection")
     print("Press Ctrl+C to stop")
-    print(lfdi.set_enable(True))
+    print(lfdi.set_controller_enable(1, True))
     #Start the data collection
     while True:
+        
+        
         #Open the file
         file = open(file_name, "a")
         #Parse the raw data
-        raw_data = lfdi.read_raw_data()
-        print(raw_data)
+        data = lfdi.get_info()
+        print(data)
+        print("LFDI Compensator will now sweep voltage from 0 to 10")
+        lfdi.set_compensator_enable(3, True)
         for i in range(10):
-            print(lfdi.set_DAC(0, i))
+            print(lfdi.set_compensator_voltage(3, i))
+            file.write(f"{lfdi.get_info}\r\n")
             sleep(2)
-        raw_data = lfdi.parse_raw_data(raw_data)
         
-        #Convert list to a tsv string
-        raw_data = "\t".join(raw_data)
-        #Get Current Time formatted to be Month/day/Year\tHour:Minute:Sec
-        raw_data = time.strftime("%m/%d/%Y\t%H:%M:%S\t") + raw_data
-
+        
         
         #Write the tsv data to the file
-        file.write(f"{raw_data}\r\n")
+        file.write(f"{lfdi.get_info}\r\n")
         #Close the file
         file.close()
         #Sleep for the sample rate

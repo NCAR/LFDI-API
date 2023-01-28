@@ -19,8 +19,8 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
     #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
     for temperature in temperatures:
         #Set the temperature
-        LFDI_TCB.set_target_temperature(temperature)
-        LFDI_TCB.set_enable(True)
+        LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
+        LFDI_TCB.set_controller_enable(controller_number = 1, enable = True)
         temporal_resolution = 1*60 #1 minute
         #Continuously output until we reach the set point
         while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
@@ -28,7 +28,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
             #Take a measurement
             #Get the Current Temp From LFDI
-            current_temp = LFDI_TCB.get_average_temperature().strip(' ')
+            current_temp = LFDI_TCB.Controllers[1].temp().strip(' ')
             #Format the Current Temp to be a string with 2 decimal places
             current_temp = f"{float(current_temp):.2f}"
             os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{str(time.time())}_{str(current_temp)}C_AutoV.csv")
@@ -184,9 +184,9 @@ if __name__ == "__main__":
     #Create the LFDI_TCB
     try: 
         lfdi = LFDI.LFDI_TCB("COM3", 9600)
-        lfdi.set_kd(1)
-        lfdi.set_ki(1)
-        lfdi.set_kp(1)
+        lfdi.set_controller_kd(controller_number=1,kd=1)
+        lfdi.set_controller_ki(controller_number=1,ki=0)
+        lfdi.set_controller_kp(controller_number=1,kp=1)
     except:
         print("Could not connect to LFDI_TCB")
         exit()
@@ -199,9 +199,12 @@ if __name__ == "__main__":
     if response.lower() == 'y':
         #Sample the ambient temperature
         ambient_temperature = None
+        #Update all the information we have on the Computer
+        lfdi.get_info()
         while ambient_temperature is None:
-            ambient_temperature = lfdi.get_average_temperature()
+            ambient_temperature = lfdi.Controllers[0].average()
             time.sleep(1)
+            lfdi.get_info()
         print(f"Ambient Temperature: {ambient_temperature}C")
     else:
         #Ask the user to enter the ambient temperature
