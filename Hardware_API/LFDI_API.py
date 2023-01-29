@@ -97,6 +97,28 @@ class Controller(object):
     def get_raw_data_command(self):
         return "r"
 
+    def get_kp_response(self):
+        return f"kp set to"
+    def get_ki_response(self):
+        return f"ki set to"
+    def get_kd_response(self):
+        return f"kd set to"
+    def get_setpoint_response(self):
+        return f"Target temperature set to"
+    def get_enable_response(self, enable:bool):
+        if(enable):
+            return f"Controller enabled."
+        else:
+            return f"Controller disabled."
+    def get_i2c_response(self):
+        return f"Sensor Address Set to"
+    def get_hist_response(self):
+        return f"History set to"
+    def get_frequency_response(self):
+        return f"Frequency set to"
+
+
+
     #get info Tab separated in the format of the header
     def get_info(self):
         info = f"Cont{self.number}\t{self.kp}\t{self.kd}\t{self.ki}\t{self.error_p}\t{self.error_d}\t{self.error_i}\t{self.effort}\t{self.temp}\t{self.average}\t{self.setpoint}\t{self.i2c}\t{self.history}\t{self.frequency}\t{self.enabled}\t{self.sensor}"
@@ -166,6 +188,32 @@ class Compensator(object):
         info = f"Comp{self.number}\t{self.voltage}\t{self.wave}\t{self.temp}\t{self.avg}\t{self.auto}\t{self.useAverage}\t{self.i2c}\t{self.enabled}\t{self.sensor}"
         return info
 
+    #This is the expected Responses from the various commands
+    def get_voltage_response(self):
+        return f" Voltage Set to"
+
+    def get_enable_response(self, enable:bool):
+        if(enable):
+            return f"Compensator {self.number} Enabled."
+        else:
+            return f"Compensator {self.number} Disabled."
+
+    def get_auto_response(self):
+        return f"Compensator {self.number} Auto Compensating"
+    
+    def get_useAverage_response(self):
+        return None
+    
+    def get_i2c_response(self):
+        return f"Sensor Address Set"
+    
+    def get_wavelength_response(self):
+        return f"Wavelength Set"
+    
+
+    
+    
+    
 
 class LFDI_TCB(object):
 
@@ -229,29 +277,46 @@ class LFDI_TCB(object):
         return
 
     #Sends Command to the Controller
-    def send_command(self, command, print_command = True):
+    def send_command(self, command, print_command = True, expected_response = None, attempts = 0):
+        if attempts > 3:
+            print(f"Too many attempts to send command {command}\nRestarting Connection")
+            self.ser.close()
+            self.OpenConnection()
+            return
+         #try to send command   
         self.ser.flushInput()
         self.ser.flushOutput()
+        
         if print_command:
             print(f"{command}")
         self.ser.write(f"{command}\r".encode('utf-8'))
         sleep(.5)
         try:
             val = self.ser.read_all().decode('utf-8', errors = 'ignore')
-            if "Unknown Command" not in val:
-                return val
-            print("Desync in sending")
-            self.send_command(command, print_command) 
         except:
             print(f"Lost Connection With port")
             self.ser.close()
             self.OpenConnection()
+        #Check to see we got the right stuff back
+        if expected_response is None:
+            return val
+        #If our response doesnot contain the expected response we are out of sync
+        if expected_response not in val:
+            print(f"Expected response: {expected_response} not Response: {val}")        
+            val = self.send_command(command, print_command, expected_response, attempts=attempts+1)
+            return val
+        return val
+             
+        
+
+
 
     #Set the Compensator Voltage
     def set_compensator_voltage(self, compensator_number:int, voltage:float):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage)))
+        expected_response = self.Compensators[compensator_number-1].get_voltage_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage), expected_response = expected_response))
         self.change_context("main")
         return
 
@@ -259,7 +324,8 @@ class LFDI_TCB(object):
     def toggle_compensator_auto(self, compensator_number):
         self.change_context("compensator")
         print(self.send_command(f"c{compensator_number}"))
-        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command()))
+        expected_response = self.Compensators[compensator_number-1].get_auto_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command(), expected_response = expected_response))
         self.change_context("main")
         return
 
@@ -271,7 +337,8 @@ class LFDI_TCB(object):
     def set_compensator_i2c(self, compensator_number, i2c):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c)))
+        expected_response = self.Compensators[compensator_number-1].get_i2c_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c), expected_response = expected_response))
         self.change_context("main")
         return
     
@@ -279,7 +346,8 @@ class LFDI_TCB(object):
     def set_compensator_enable(self, compensator_number, enable):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable)))
+        expected_response = self.Compensators[compensator_number-1].get_enable_response(enable)
+        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -287,7 +355,8 @@ class LFDI_TCB(object):
     def set_controller_enable(self, controller_number, enable):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable)))
+        expected_response = self.Controllers[controller_number-1].get_enable_response(enable)
+        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -295,7 +364,8 @@ class LFDI_TCB(object):
     def set_controller_i2c(self, controller_number, i2c):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c)))
+        expected_response = self.Controllers[controller_number-1].get_i2c_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c), expected_response = expected_response))
         self.change_context("main")
         return
     
@@ -303,7 +373,8 @@ class LFDI_TCB(object):
     def set_controller_kp(self, controller_number, kp):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_kp_command(kp)))
+        expected_response = self.Controllers[controller_number-1].get_kp_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_kp_command(kp), expected_response = expected_response))
         self.change_context("main")
         return
     
@@ -311,7 +382,8 @@ class LFDI_TCB(object):
     def set_controller_ki(self, controller_number, ki):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_ki_command(ki)))
+        expected_response = self.Controllers[controller_number-1].get_ki_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_ki_command(ki), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -319,7 +391,8 @@ class LFDI_TCB(object):
     def set_controller_kd(self, controller_number, kd):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_kd_command(kd)))
+        expected_response = self.Controllers[controller_number-1].get_kd_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_kd_command(kd), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -327,7 +400,8 @@ class LFDI_TCB(object):
     def set_controller_hist(self, controller_number, hist):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_hist_command(hist)))
+        expected_response = self.Controllers[controller_number-1].get_hist_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_hist_command(hist), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -335,7 +409,8 @@ class LFDI_TCB(object):
     def set_controller_frequency(self, controller_number, frequency):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_frequency_command(frequency)))
+        expected_response = self.Controllers[controller_number-1].get_frequency_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_frequency_command(frequency), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -343,7 +418,8 @@ class LFDI_TCB(object):
     def set_controller_kp(self, controller_number, kp):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_kp_command(kp)))
+        expected_response = self.Controllers[controller_number-1].get_kp_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_kp_command(kp), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -351,7 +427,8 @@ class LFDI_TCB(object):
     def set_controller_ki(self, controller_number, ki):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_ki_command(ki)))
+        expected_response = self.Controllers[controller_number-1].get_ki_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_ki_command(ki), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -359,7 +436,8 @@ class LFDI_TCB(object):
     def set_controller_kd(self, controller_number, kd):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_kd_command(kd)))
+        expected_response = self.Controllers[controller_number-1].get_kd_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_kd_command(kd), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -367,7 +445,8 @@ class LFDI_TCB(object):
     def set_controller_hist(self, controller_number, hist):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_hist_command(hist)))
+        expected_response = self.Controllers[controller_number-1].get_hist_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_hist_command(hist), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -375,7 +454,8 @@ class LFDI_TCB(object):
     def set_controller_frequency(self, controller_number, frequency):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_frequency_command(frequency)))
+        expected_response = self.Controllers[controller_number-1].get_frequency_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_frequency_command(frequency), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -383,7 +463,8 @@ class LFDI_TCB(object):
     def set_controller_setpoint(self, controller_number, setpoint):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_setpoint_command(setpoint)))
+        expected_response = self.Controllers[controller_number-1].get_setpoint_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_setpoint_command(setpoint), expected_response=expected_response))
         self.change_context("main")
         return
         
@@ -391,7 +472,8 @@ class LFDI_TCB(object):
     def set_controller_i2c(self, controller_number, i2c):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c)))
+        expected_response = self.Controllers[controller_number-1].get_i2c_response()
+        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -399,7 +481,8 @@ class LFDI_TCB(object):
     def set_controller_enable(self, controller_number, enable:bool):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
-        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable)))
+        expected_response = self.Controllers[controller_number-1].get_enable_response(enable)
+        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -407,7 +490,8 @@ class LFDI_TCB(object):
     def set_compensator_auto(self, compensator_number):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command()))
+        expected_response = self.Compensators[compensator_number-1].get_auto_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command(), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -415,7 +499,8 @@ class LFDI_TCB(object):
     def set_compensator_voltage(self, compensator_number, voltage):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage)))
+        expected_response = self.Compensators[compensator_number-1].get_voltage_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -423,7 +508,8 @@ class LFDI_TCB(object):
     def set_compensator_wavelength(self, compensator_number, wavelength):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_wavelength_command(wavelength)))
+        expected_response = self.Compensators[compensator_number-1].get_wavelength_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_wavelength_command(wavelength), expected_response=expected_response))
         self.change_context("main")
         return
 
@@ -431,7 +517,8 @@ class LFDI_TCB(object):
     def set_compensator_i2c(self, compensator_number, i2c):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c)))
+        expected_response = self.Compensators[compensator_number-1].get_i2c_response()
+        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c), expected_response=expected_response))
         self.change_context("main")
         return
     
@@ -441,7 +528,8 @@ class LFDI_TCB(object):
             self.set_compensator_voltage(compensator_number=compensator_number, voltage=0)
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
-        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable)))
+        expected_response = self.Compensators[compensator_number-1].get_enable_response(enable)
+        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable), expected_response=expected_response))
         self.change_context("main")
         return
     
