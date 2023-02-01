@@ -78,7 +78,7 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
 
 
 
-def Run_Endurance_Test(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp, end_temp, step, tolerance, folder):
+def Run_Endurance_Test(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, tolerance, folder):
     
     while True:
 
@@ -87,7 +87,7 @@ def Run_Endurance_Test(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, 
         file.write(f"{LFDI_TCB.header_format}\n")
         file.close()
         #Pick a random temperature between 23 and 30
-        random_temp = np.random.randint(23,30)
+        random_temp = np.random.randint(25,30)
         #Pick a rondom Compensator
         random_compensator = np.random.randint(0,6)
         #pick a random wavelength between 20 and 500
@@ -294,5 +294,5 @@ if __name__ == "__main__":
     
     #Cycle through the temperatures
     #SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
-    Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
-    
+    #Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
+    Run_Endurance_Test(spectrometer=spectrometer, LFDI_TCB=lfdi,tolerance=.5, folder= folder)
