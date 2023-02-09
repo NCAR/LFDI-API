@@ -78,6 +78,59 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
 
 
 
+def Run_Endurance_Test(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, tolerance, folder):
+    
+    while True:
+
+        filename = f"{folder}\\TCB_Out.tsv"
+        file = open(filename, "w")
+        file.write(f"{LFDI_TCB.header_format}\n")
+        file.close()
+        #Pick a random temperature between 23 and 30
+        random_temp = np.random.randint(25,30)
+        #Pick a rondom Compensator
+        random_compensator = np.random.randint(0,6)
+        #pick a random wavelength between 20 and 500
+        random_wavelength = np.random.randint(20,500)
+        #Set the Compensator to the random wavelength
+        LFDI_TCB.set_compensator_wavelength(random_compensator,random_wavelength)
+        #Set the temperature
+        LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = random_temp)
+        LFDI_TCB.set_controller_enable(controller_number = 1, enable = True)
+        #Turn on the Auto Compensator Algo on compensator 3
+        LFDI_TCB.set_compensator_auto(random_compensator)
+        #Enable the Compensator
+        LFDI_TCB.set_compensator_enable(random_compensator,True)
+        #Continuously output until we reach the set point
+        while not TCB_at_temp(random_temp, LFDI_TCB, tolerance):
+            #Get the Current time and output the spectrograph for a minute
+            now = time.time()
+            spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, 60))
+            #Take a measurement
+            file = open(filename, "a")
+            file.write(f"{LFDI_TCB.get_info()}\n")
+            file.close()
+            #Get the Current Temp From LFDI
+            current_temp = LFDI_TCB.Controllers[0].average
+            #Format the Current Temp to be a string with 2 decimal places
+            current_temp = f"{float(current_temp):.2f}"
+            os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{LFDI_TCB.Compensators[random_compensator].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[random_compensator].voltage}V.csv")
+        print(f"Reached {random_temp}C")
+        print("Waiting 5 minutes")
+        #Wait For the Crystal to warm through out
+        now = time.time()
+        seconds_to_wait = 300 #wait for 5 min
+        while not wait_time(now, seconds_to_wait):
+            current_time = time.time()
+            spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, 60))
+            current_temp = LFDI_TCB.Controllers[0].average
+            file = open(filename, "a")
+            file.write(f"{LFDI_TCB.get_info()}\n")
+            file.close()
+            #Format the Current Temp to be a string with 2 decimal places
+            current_temp = f"{float(current_temp):.2f}"
+            os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{LFDI_TCB.Compensators[random_compensator].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[random_compensator].voltage}V.csv")
+
 
 #Sweep the temperature of the TCB and the Voltage applied from the DAC; take an image at each state
 def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp: float, end_temp: float, step_temp:float ,start_voltage:float, end_voltage:float, step_voltage:float, tolerance:float, folder:os.path):
@@ -241,5 +294,5 @@ if __name__ == "__main__":
     
     #Cycle through the temperatures
     #SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
-    Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
-    
+    #Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
+    Run_Endurance_Test(spectrometer=spectrometer, LFDI_TCB=lfdi,tolerance=.5, folder= folder)
