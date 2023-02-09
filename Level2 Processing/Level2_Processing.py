@@ -5,6 +5,12 @@ import imageio
 from Scan import Scan, TemperatueScanSet, VoltageScanSet, ExperimentSet
 import glob
 import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+#import maxnlocators
+from matplotlib.ticker import MaxNLocator
 
 #make a level 2 folder for the data
 def makeLevel2Folder(path):
@@ -84,14 +90,127 @@ def createGif(file_list, save_path, filename = "CorrelationsAt23.1C.gif", delete
     return
 
 
+#Holds all of the Data for a Controller
+class Controller():
+    def __init__(self, number: int, dataframe: pd.DataFrame):
+        self.data = dataframe
+        self.number = number
+        self.kp = self.getColumn('kp')
+        self.kd = self.getColumn('kd')
+        self.ep = self.getColumn('ep')
+        self.ki = self.getColumn('ki')
+        self.ed = self.getColumn('ed')
+        self.ei = self.getColumn('ei')
+        self.effort = self.getColumn('effort')
+        self.temp = self.getColumn('temp', duplicate = 0)
+        self.average = self.getColumn('average', duplicate = 0)
+        self.target = self.getColumn('target')
+        self.i2c = self.getColumn('i2c', duplicate = 0)
+        self.hist = self.getColumn('hist')
+        self.freq = self.getColumn('freq')
+        self.enabled = self.getColumn('enabled', duplicate = 0)
+        self.sensor = self.getColumn('sensor', duplicate = 0)
+
+    def getColumn(self, column_name, duplicate = None):
+        if duplicate == None:
+            return self.data[column_name].values
+        else:
+            return self.data.filter(like=column_name).iloc[:,duplicate]
+
+
+#Make a child class of the TCB_TSV class
+class Compensator():
+    def __init__(self, number, dataframe):
+        self.data = dataframe
+        self.Peak2Peak = self.getColumn('Peak2Peak', duplicate = number-1)
+        self.Wave = self.getColumn('Wave', duplicate = number-1)
+        self.Temp = self.getColumn('Temp', duplicate = number)
+        self.Avg = self.getColumn('Avg', duplicate = number)
+        self.Auto = self.getColumn('Auto', duplicate = number-1)
+        self.UseAverage = self.getColumn('UseAverage', duplicate = number-1)
+        self.i2c = self.getColumn('i2c', duplicate = number)
+        self.enabled = self.getColumn('enabled', duplicate = number)
+        self.sensor = self.getColumn('sensor', duplicate = number)
+    
+    def getColumn(self, column_name, duplicate = None):
+        if duplicate == None:
+            return self.data[column_name].values
+        else:
+            return self.data.filter(like=column_name).iloc[:,duplicate]
+
+
+#This class will contain the data for a tsv file
+#all data will be read in and stored in a numpy array
+#The data has the header of 
+class TCB_TSV:
+
+    def __init__(self, filename):
+        self.filename = filename
+        self.header = "Date\tTime\tCont\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\t"
+        self.data = []
+        self.readData()
+        self.Controller = Controller(1, self.data)
+        self.Compensators = [Compensator(1, self.data), Compensator(2, self.data),Compensator(3, self.data)]
+        self.date = self.getColumn('Date')
+        self.time = self.getColumn('Time')
+        
+    #Read the data from the file into a pandas dataframe
+    def readData(self):
+        self.data = pd.read_csv(self.filename, sep='\t', header=0)
+        self.data.columns = self.header.split('\t')
+        return
+
+    def getColumn(self, column_name, duplicate = None):
+        if duplicate == None:
+            return self.data[column_name].values
+        else:
+            return self.data.filter(like=column_name).iloc[:,duplicate]
+
+
+    #Plot the Target and Temperature data of the Controller against the date and time
+    def plot(self, show = False):
+        #Create a figure
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+
+        #Plot the data
+        ax.plot(self.time, self.Controller.target, label = "Target")
+        ax.plot(self.time, self.Controller.temp, label = "Temperature")
+
+        #Set the axis labels
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Temperature (C)")
+
+        #Set the title
+        ax.set_title(f"Target and Temperature vs Time")
+
+        #Set the legend
+        ax.legend()
+
+        #only show 5 xticks
+        ax.xaxis.set_major_locator(MaxNLocator(5))
+        
+        
+
+        #Show the plot
+        if show:
+            plt.show()
+        return
+    
+
+
 #Main Function
 if __name__ == '__main__':
     path = "C:\\Users\\mjeffers\\Desktop\\"
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
 
+    TCB_TSV_file = f"{path}TCB_Out.tsv"
+    tcb = TCB_TSV(TCB_TSV_file)
+    tcb.plot(show=True)
 
     scan_path = f"{path}Experiment_2023-01-20_15-19-55\\"
     scan_path = f"{path}Experiment_2023-01-23_14-48-31\\"
+
 
     l2_path = makeLevel2Folder(path)
     
