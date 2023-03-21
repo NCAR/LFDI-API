@@ -162,7 +162,9 @@ def end_trigger(start):
 if __name__ == '__main__':
     #AnExample of how to Use the Spectrometer Class
     spec = Spectrometer()
-    print("Output With out auto Exposure")
+    print("Output Without auto Exposure")
+    spec.enable_auto_exposure(False)
+    
     spec.single_output('Test1')
     spec.continuous_output()
     print("Output With auto Exposure")
