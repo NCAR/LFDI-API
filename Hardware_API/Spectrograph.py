@@ -7,7 +7,7 @@
 
 
 
-import Hardware_API.ZWO as ZWO
+import ZWO as ZWO
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -27,7 +27,7 @@ class Spectrometer:
         self.camera.set_roi('max', 'max')
         self.crosssection_position = 'middle'
         self.crosssection_width = 20
-        self.current_image = '_temp_image.tif'
+        self.current_image = '_temp_image.png'
         self.current_graph = '_temp_graph.png'
         self.current_crosssection = '_temp_crosssection.csv'
 
@@ -97,7 +97,7 @@ class Spectrometer:
                 image_name = self.current_image
                 self.take_image(self.current_image)
             else:
-                image_name = 'Test1.tif'
+                image_name = 'Test1.png'
             #clear axis 1
             ax.clear()
             #clear axis 2
@@ -131,8 +131,8 @@ class Spectrometer:
 
     #Get a Single Output and save the image, graph, and cross section
     def single_output(self, image_name_prefix = 'Test'):
-        image_fn = image_name_prefix + '.tif'
-        graph_fn = image_name_prefix + '.png'
+        image_fn = image_name_prefix + '.png'
+        graph_fn = image_name_prefix + '_graph.png'
         crosssection_fn = image_name_prefix + '.csv'
         self.take_image(image_fn)
 
