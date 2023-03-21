@@ -484,3 +484,8 @@ class ExperimentSet:
         return
 
 
+if __name__ == "__main__":
+
+
+    #Load in all of th Data
+    data = load_data("Data/2021-03-02 15-00-00.txt")
