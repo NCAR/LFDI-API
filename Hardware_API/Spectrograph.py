@@ -7,7 +7,7 @@
 
 
 
-import ZWO as ZWO
+import Hardware_API.ZWO as ZWO
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -80,7 +80,7 @@ class Spectrometer:
         return peak_position
 
     #Run Continuous Output of the Plot all images will be saved to the Temp Files names the refresh rate is in seconds and the end trigger is a function that returns a boolean 
-    def continuous_output(self, refresh_rate=1, end_trigger=None):
+    def continuous_output(self, refresh_rate=5, end_trigger=None):
         print('Starting Continuous Output')
         print('Close the plot to Continue')
         if end_trigger is not None:

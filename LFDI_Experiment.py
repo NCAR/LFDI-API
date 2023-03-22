@@ -405,6 +405,7 @@ def calibrate_camera(spectrometer):
             camera_gain = int(camera_gain)
         except ValueError as e:
             print(f"Value Error {e} Please enter an integer")
+        spectrometer.camera.set_gain(camera_gain)
         #Show the Spectrograph output for the User to adjust the camera gain
         spectrometer.continuous_output()
         #Ask the user if the camera gain is good
@@ -424,6 +425,8 @@ def calibrate_camera(spectrometer):
                 raise ValueError("Camera Exposure must be a positive number")
         except ValueError as e:
             print(f"Value Error {e} Please enter a positive number")
+
+        spectrometer.camera.set_exposure(camera_exposure)
         #Show the Spectrograph output for the User to adjust the camera exposure
         spectrometer.continuous_output()
         #Ask the user if the camera exposure is good
@@ -490,7 +493,7 @@ if __name__ == "__main__":
 
     #Create folder
     folder = make_experiment_folder()
-    calibrate_camera(spectrometer, folder)
+    calibrate_camera(spectrometer)
     calibrate_LED(spectrometer, folder)
 
     

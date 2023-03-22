@@ -19,14 +19,14 @@ class ZWO_Camera:
         self.set_roi('max', 'max')
         self.set_timeout()
         #this will create a Text File with the Same Name every time an Image is taken containing the Control Values for the camea
-        self.save_control_values = True
+        self.save_control_values_on = True
         
 
     def set_gain(self, gain):
         self.camera.set_control_value(asi.ASI_GAIN, gain)
     
     def save_control_values(self, filename):
-        settings = self.camera.get_controls_values()
+        settings = self.camera.get_control_values()
         #if the file name contains a .jpg, .png, .tif or .bmp remove it
         while filename.endswith('.jpg') or filename.endswith('.png') or filename.endswith('.tif') or filename.endswith('.bmp'):
             filename = filename[:-4]
@@ -80,7 +80,7 @@ class ZWO_Camera:
         self.set_timeout()
         self.camera.set_control_value(asi.ASI_EXPOSURE, self.auto_exposure)
         self.camera.capture(filename=filename)
-        if self.save_control_values:
+        if self.save_control_values_on:
             self.save_control_values(filename)
         return
         
