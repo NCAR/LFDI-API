@@ -2,7 +2,7 @@
 from datetime import datetime
 from scipy.signal import savgol_filter
 import imageio
-from Scan import Scan, TemperatueScanSet, VoltageScanSet, ExperimentSet
+import Scan
 import glob
 import os
 import numpy as np
@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 #import maxnlocators
 from matplotlib.ticker import MaxNLocator
+import pickle
 
 #make a level 2 folder for the data
 def makeLevel2Folder(path):
@@ -24,52 +25,6 @@ def makeLevel2Folder(path):
 
 
 
-#Fix Discontinuities in the data 
-# TODO This is Completly Hands on Needs to Be more Automated Its difficult to look for True Discontinuities in messy data
-def fixDiscontinuities(temperature_scan_set: TemperatueScanSet, threshold = 10):
-    FixedLocalMaximas = []
-    #Find the Scan with the Highest First Local Maxima
-    highest_first_local_maxima = 0
-    highest_first_local_maxima_scan = None
-    for scan in temperature_scan_set.scans:
-        if scan.first_local_maxima > highest_first_local_maxima:
-            highest_first_local_maxima = scan.first_local_maxima
-            highest_first_local_maxima_scan = scan
-    #Copy over all the data points from the highest first local maxima scan
-    for i in range(0, len(temperature_scan_set.scans)):
-        FixedLocalMaximas.append(temperature_scan_set.scans[i].first_local_maxima)
-    
-    #For all Data points between 0 and 2.3V add the highest first local maxima to the data point + 25
-    for i in range(0, 230):
-        FixedLocalMaximas[i] += highest_first_local_maxima
-    #For all Data points between 0 and 4.16V and add the highest first local maxima to the data point + 25
-    for i in range(0, 416):
-        FixedLocalMaximas[i] += highest_first_local_maxima 
-    #Anypoints that are over 1060 Subtract highest first local maxima
-    for i in range(0, len(FixedLocalMaximas)):
-        if FixedLocalMaximas[i] > 1060:
-            FixedLocalMaximas[i] -= highest_first_local_maxima
-        if FixedLocalMaximas[i] < 120:
-            FixedLocalMaximas[i] += highest_first_local_maxima
-    #if a point between 2.1 and 2.3V is less than 734 add the highest first local maxima to the data point
-    for i in range(210, 260):
-        if FixedLocalMaximas[i] < 734:
-            FixedLocalMaximas[i] += highest_first_local_maxima
-    #Remove the outliers points if they are too far away from their neighbours
-    for i in range(0, len(FixedLocalMaximas)):
-        if i > 0 and i < len(FixedLocalMaximas) - 1:
-            if (abs(FixedLocalMaximas[i] - FixedLocalMaximas[i-1]) > threshold or abs(FixedLocalMaximas[i] - FixedLocalMaximas[i+1]) > threshold):
-                FixedLocalMaximas[i] = (FixedLocalMaximas[i-1] + FixedLocalMaximas[i+1])/2
-    #Smooth the data
-    SmoothedLocalMaximas = savgol_filter(FixedLocalMaximas, 51, 3)
-    SmoothedLocalMaximas = savgol_filter(SmoothedLocalMaximas, 51, 3)
-    SmoothedLocalMaximas = savgol_filter(SmoothedLocalMaximas, 100, 3)
-    return FixedLocalMaximas, SmoothedLocalMaximas
-    
-
-
-
-
 #Create a gif out of a list of Files
 def createGif(file_list, save_path, filename = "CorrelationsAt23.1C.gif", delete_files = False):
     #make a list of images
@@ -77,7 +32,10 @@ def createGif(file_list, save_path, filename = "CorrelationsAt23.1C.gif", delete
     for file in file_list:
         images.append(imageio.imread(file))
     #save the gif
-    imageio.mimsave(save_path+"\\" + f'{filename}.gif', images)
+    
+    #One image for every 1 second
+    
+    imageio.mimsave(save_path+"\\" + f'{filename}.gif', images, fps = 2)
 
     #Delete the files
     if delete_files:
@@ -89,234 +47,352 @@ def createGif(file_list, save_path, filename = "CorrelationsAt23.1C.gif", delete
                 os.remove(file)
     return
 
+#Plot the nearest maxima vs voltage
+def plotNearestMaximaVsVoltage(scans_path, save_path, filename = "NearestMaximaVsVoltage.png"):
+    scans = get_all_scans(scans_path)
+    #Filter Scans to only get scans at 3.0V
+    scans = filter_scans(scans, temperature = [24.8, 25.2], prefix = "Hold", sort = "Voltage")
+    process_scans(scans, save_path, generate_graph = True)
+    #Get the nearest maxima for each scan
+    nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+    #Get the voltages for each scan
+    voltages = [scan.voltage for scan in scans]
+    #Create the plot
+    #go through the nearest maximas and look for a discontinuity in the data
+    #if there is a discontinuity, then add .45nm to all the previous data
+    for i in range(len(nearest_maxima)):
+        if i == 0:
+            continue
+        if nearest_maxima[i] > .30 + nearest_maxima[i-1]:
+            for j in range(i):
+                nearest_maxima[j] += .43
 
-#Holds all of the Data for a Controller
-class Controller():
-    def __init__(self, number: int, dataframe: pd.DataFrame):
-        self.data = dataframe
-        self.number = number
-        self.kp = self.getColumn('kp')
-        self.kd = self.getColumn('kd')
-        self.ep = self.getColumn('ep')
-        self.ki = self.getColumn('ki')
-        self.ed = self.getColumn('ed')
-        self.ei = self.getColumn('ei')
-        self.effort = self.getColumn('effort')
-        self.temp = self.getColumn('temp', duplicate = 0)
-        self.average = self.getColumn('average', duplicate = 0)
-        self.target = self.getColumn('target')
-        self.i2c = self.getColumn('i2c', duplicate = 0)
-        self.hist = self.getColumn('hist')
-        self.freq = self.getColumn('freq')
-        self.enabled = self.getColumn('enabled', duplicate = 0)
-        self.sensor = self.getColumn('sensor', duplicate = 0)
-
-    def getColumn(self, column_name, duplicate = None):
-        if duplicate == None:
-            return self.data[column_name].values
-        else:
-            return self.data.filter(like=column_name).iloc[:,duplicate]
-
-
-#Make a child class of the TCB_TSV class
-class Compensator():
-    def __init__(self, number, dataframe):
-        self.data = dataframe
-        self.Peak2Peak = self.getColumn('Peak2Peak', duplicate = number-1)
-        self.Wave = self.getColumn('Wave', duplicate = number-1)
-        self.Temp = self.getColumn('Temp', duplicate = number)
-        self.Avg = self.getColumn('Avg', duplicate = number)
-        self.Auto = self.getColumn('Auto', duplicate = number-1)
-        self.UseAverage = self.getColumn('UseAverage', duplicate = number-1)
-        self.i2c = self.getColumn('i2c', duplicate = number)
-        self.enabled = self.getColumn('enabled', duplicate = number)
-        self.sensor = self.getColumn('sensor', duplicate = number)
-    
-    def getColumn(self, column_name, duplicate = None):
-        if duplicate == None:
-            return self.data[column_name].values
-        else:
-            return self.data.filter(like=column_name).iloc[:,duplicate]
-
-
-#This class will contain the data for a tsv file
-#all data will be read in and stored in a numpy array
-#The data has the header of 
-class TCB_TSV:
-
-    def __init__(self, filename):
-        self.filename = filename
-        self.header = "Date\tTime\tCont\tkp\tkd\tki\tep\ted\tei\teffort\ttemp\taverage\ttarget\ti2c\thist\tfreq\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\tComp\tPeak2Peak\tWave\tTemp\tAvg\tAuto\tUseAverage\ti2c\tenabled\tsensor\t"
-        self.data = []
-        self.readData()
-        self.Controller = Controller(1, self.data)
-        self.Compensators = [Compensator(1, self.data), Compensator(2, self.data),Compensator(3, self.data)]
-        self.date = self.getColumn('Date')
-        self.time = self.getColumn('Time')
+    #Go through make all the data relative to the lowest point
+    lowest = min(nearest_maxima)
+    for i in range(len(nearest_maxima)):
+        nearest_maxima[i] -= lowest
         
-    #Read the data from the file into a pandas dataframe
-    def readData(self):
-        self.data = pd.read_csv(self.filename, sep='\t', header=0)
-        self.data.columns = self.header.split('\t')
+    fig, ax = plt.subplots()
+    ax.plot(voltages, nearest_maxima, 'o')
+    ax.set(xlabel='Voltage (V)', ylabel='Tuning Range (nm)',
+        title='Tuning Range (nm) vs LCVR Drive Voltage\n for LFDI Single Wide-Fielded Stage (5.406mm)')
+    ax.grid()
+
+    #Save the plot
+    fig.savefig(save_path + "\\" + filename)
+    
+    return
+
+
+#Make a diagrom showing the nearest maxima vs voltage for multiple temperatures
+def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, temperatures, filename = "NearestMaximaVsVoltageMultiTemp.png"):
+        
+    scans = get_all_scans(scans_path)
+    temperature_sets = []
+    for temp in temperatures:
+        filtered_scans = filter_scans(scans,compensated = False, temperature = [temp - .2, temp + .2], prefix = "Hold", sort = "Voltage")
+        cross_section,processed_scans  = process_scans(filtered_scans, l2_path, generate_graph = True)
+
+        temperature_sets.append(processed_scans)
+        
+    print("Done Sorting")
+    print("Saving Cross Sections")
+    
+
+
+    print(len(temperature_sets))
+    fig, ax = plt.subplots()
+    for scans in temperature_sets:
+        print("Temperature: ", scans)
+    #Get the nearest maxima for each scan
+        for scan in scans:
+            print(scan.nearest_maxima)
+        nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+        #Get the voltages for each scan
+        voltages = [scan.voltage for scan in scans]
+        #Create the plot
+        #go through the nearest maximas and look for a discontinuity in the data
+        #if there is a discontinuity, then add .45nm to all the previous data
+        print("Length of nearest maxima: ", len(nearest_maxima))
+        for i in range(len(nearest_maxima)):
+            if i == 0:
+                continue
+            if nearest_maxima[i] > .30 + nearest_maxima[i-1]:
+                for j in range(i):
+                    nearest_maxima[j] += .43
+        
+
+        ax.plot(voltages, nearest_maxima, 'o', label = f"{scans[0].temperature} C")
+    ax.set(xlabel='Voltage (V)', ylabel='Tuning Range (nm)',
+        title='Tuning Range (nm) vs LCVR Drive Voltage\n for LFDI Single Wide-Fielded Stage (5.406mm)')
+    ax.grid()
+    ax.legend()
+    #Save the plot
+    fig.savefig(l2_path + "\\" + filename)
+
+
+
+
+#Create a plot of The nearest_maxima vs Temperature
+def plotNearestMaximaVsTemperature(scans_path, save_path, filename = "NearestMaximaVsTemperature.png"):
+    scans = get_all_scans(scans_path)
+
+    #Filter Scans to only get scans at 3.0V
+    scans = filter_scans(scans, voltage = 3.0, prefix = "Hold", sort = "Temperature")
+
+    crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
+
+    #Get the nearest maxima for each scan
+    nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+    
+    #Subtract the lowest point from all the data
+    lowest = min(nearest_maxima)
+    for i in range(len(nearest_maxima)):
+        nearest_maxima[i] -= lowest
+    
+    #Go through all nearest maximas and fix any discontinuities. ie if the current data point is less than.2nm add .43nm th the data point
+    for i in range(len(nearest_maxima)):
+        if i == 0:
+            continue
+        #TODO Bad Assumption Here Need to fix discontiniuty detection
+        if nearest_maxima[i] < .2:
+            print("Discontinuity found")
+            nearest_maxima[i] += .41
+            
+                
+    #Get the temperatures for each scan
+    temperatures = [scan.temperature for scan in scans]
+    #Create the plot
+    fig, ax = plt.subplots()
+    
+    
+    
+    ax.plot(temperatures, nearest_maxima, 'o')
+    ax.set(xlabel='Temperature (C)', ylabel='Tuning Range (nm)',
+        title=f'Tuning Range (nm) vs Temperature at LCVR Drive Voltage {scans[0].voltage}V')
+    ax.grid()
+    #Fit a line to the data
+    z = np.polyfit(temperatures, nearest_maxima, 1)
+    p = np.poly1d(z)
+    ax.plot(temperatures,p(temperatures),"r--")
+    #Show the linear equation as well as the R^2 value
+    ax.text(0.05, 0.95, f"y={z[0]:.2f}x+{z[1]:.2f}", transform=ax.transAxes, fontsize=14, verticalalignment='top')
+    #Save the plot
+    fig.savefig(save_path + "\\" + filename)
+    
+    return
+
+
+
+#@param kwargs: The filters to use when generating the gif
+#   @param compensated: The compensated state of the scans to use (True or False)
+#   @param prefix: The prefix of the scans to use (ex: "LFDI", "Hold", "Slew")
+#   @param temperature: The Range of temperatures of the scans to use (ex: [25, 30], [20, 35])
+#   @param voltage: The voltage of the scans to use (ex: 0.0, 3.3)
+#   @param wavelength: The wavelength of the scans to use (ex: 656.28, 0.0)
+#   @param sort: The sort of the scans to use (ex: "Voltage", "Temperature")
+def filter_scans(scans, **kwargs):
+        #Filter the scans
+        if "compensated" in kwargs:
+            print("Filtering by compensated")
+            scans = Scan.get_scans_with_compensator_state(scans, kwargs["compensated"])
+        if "prefix" in kwargs:
+            print("Filtering by prefix")
+            scans = Scan.get_scans_with_prefix(scans, kwargs["prefix"])
+        if "temperature" in kwargs:
+            print("Filtering by temperature")
+            scans = Scan.get_scans_at_temperature(scans, kwargs["temperature"])
+        if "voltage" in kwargs:
+            print("Filtering by voltage")
+            scans = Scan.get_scans_at_voltage(scans, kwargs["voltage"])
+        if "wavelength" in kwargs:
+            print("Filtering by wavelength")
+            scans = Scan.get_scans_at_wavelength(scans, kwargs["wavelength"])
+        if "sort" in kwargs:
+            print("Sorting by attribute")
+            scans = Scan.sort_scans_by_attribute(scans, attribute = kwargs["sort"])
+        
+        
+        return scans
+
+
+#Filter the scans by temperature get only the scans at the given temperatures
+#@param scans: The scans to filter
+#@param temperatures: The temperatures to filter by [start, end, step](ex: 23.5, 30, 0.5)
+def filter_Temperatures(scans, start, end, step):
+        NewTemperatures = []
+        import numpy as np
+        for i in np.arange(start, end, step):
+            #Find the Temperature that is closest to the current temperature
+            closest = min(scans, key=lambda x:abs(x.temperature-i))
+            NewTemperatures.append(closest)
+
+        return NewTemperatures
+
+############################################################################################################
+#Create a gif out of multiple Cross sections of the Spectra Output
+#@param scans_path: The path to the scans
+#@param l2_path: The path to the L2 files
+#@param filename: The name of the file to save the gif as
+#@param kwargs: The filters to use when generating the gif
+#   @param compensated: The compensated state of the scans to use (True or False)
+#   @param prefix: The prefix of the scans to use (ex: "LFDI", "Hold", "Slew")
+#   @param temperature: The Range of temperatures of the scans to use (ex: [25, 30], [20, 35])
+#   @param voltage: The voltage of the scans to use (ex: 0.0, 3.3)
+#   @param wavelength: The wavelength of the scans to use (ex: 656.28, 0.0)
+#   @param sort: The sort of the scans to use (ex: "Voltage", "Temperature")
+def generate_gif_plot(scans_path, l2_path, filename = "Gif.gif", **kwargs):
+        #kwargs will be used to Filter the scans
+        #Get all the scans in the scans_path
+        scans = get_all_scans(scans_path)
+
+        #Filter the scans
+        scans = filter_scans(scans, **kwargs)
+        print("Done Sorting")
+        crosssections = []
+        print("Saving Cross Sections")
+        processed_scans = []
+        
+        #go through all the Uniq temperatures and store all the temperatures that are closes to .5C intervals in a new list
+        #This is done to reduce the number of scans that are used to generate the compensated plot
+        scans = filter_Temperatures(scans, 23.5, 30, 0.5)
+        print("Done Finding Closest Temperatures")
+
+        crosssections, processed_scans = process_scans(scans, l2_path)
+
+
+        #Find the mean nearest maxima for all of the scans
+        nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in processed_scans]
+        mean_nearest_maxima = np.mean(nearest_maxima)
+        print(f"Mean Nearest Maxima: {mean_nearest_maxima}")
+        #Find the maximum Variance from the mean
+        max_variance = max([abs(mean_nearest_maxima - nearest_maxima[i]) for i in range(len(nearest_maxima))])
+        print(f"Max Variance: {max_variance}")
+        #Find the standard deviation
+        std = np.std(nearest_maxima)
+        print(f"Standard Deviation: {std}")
+        #Calculate the RMS
+        #Sum the squares of the differences from the mean
+        square_diff = 0
+        for i in range(len(nearest_maxima)):
+            square_diff += (nearest_maxima[i] - mean_nearest_maxima)**2
+        #Divide by the number of scans
+        nearest_maxima = square_diff/len(nearest_maxima)
+        #Take the square root
+
+        rms = np.sqrt(nearest_maxima)
+        print(f"RMS: {rms}")
+        input("Press Enter to Continue")
+
+        print("Making Gif")
+
+        #Remove the first Filename for some reason its messed up
+        crosssections = crosssections[1:]
+        createGif(crosssections, l2_path, filename, delete_files=True)
         return
 
-    def getColumn(self, column_name, duplicate = None):
-        if duplicate == None:
-            return self.data[column_name].values
-        else:
-            return self.data.filter(like=column_name).iloc[:,duplicate]
+
+def get_all_scans(scans_path):
+        #Get all the scans in the scans_path
+        Files = [scan for scan in os.listdir(scans_path) if scan.endswith(".png")]
+        scans = []
+        for File in Files:
+            #Check if a pickle file exists for the scan
+            if os.path.exists(f"{scans_path}\\{File[:-4]}.pkl"):
+                #Load the pickle file
+                with open(f"{scans_path}\\{File[:-4]}.pkl", 'rb') as f:
+                    scans.append(pickle.load(f))
+            else:
+                scans.append(Scan.Scan(File, scans_path))
+        return scans
 
 
-    #Plot the Target and Temperature data of the Controller against the date and time
-    def plot(self, show = False):
-        #Create a figure
-        fig = plt.figure()
-        ax = fig.add_subplot(111)
-
-        #Plot the data
-        ax.plot(self.time, self.Controller.target, label = "Target")
-        ax.plot(self.time, self.Controller.temp, label = "Temperature")
-
-        #Set the axis labels
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Temperature (C)")
-
-        #Set the title
-        ax.set_title(f"Target and Temperature vs Time")
-
-        #Set the legend
-        ax.legend()
-
-        #only show 5 xticks
-        ax.xaxis.set_major_locator(MaxNLocator(5))
-        
-        
-
-        #Show the plot
-        if show:
-            plt.show()
-        return
+def process_scans(scans, l2_path, generate_graph = True):
+    crosssections = []
+    processed_scans = []
+    for temp in scans:
+        #if temp is a list then there are multiple scans at that temperature
+        try:
+            print(f"Temperature: {temp[0].temperature}")
+            #only process one scan at that temperature
+            scan = temp[0]
+        except:
+            print(f"Temperature: {temp.temperature}")
+            scan = temp
+        print(f"Scan: {scan}")
+        filename = f"{l2_path}\\CrossSection{scan.temperature}C.png"
+        if generate_graph:
+            if not scan.processed:
+                scan.process()
+            scan.save_cross_section(filename,  smooth=True, plot_raw=True, scale = True)
+        crosssections.append(filename)
+        processed_scans.append(scan)
     
+    return crosssections, processed_scans
 
 
 #Main Function
 if __name__ == '__main__':
-    path = "C:\\Users\\mjeffers\\Desktop\\"
+    gen_compensated = True
+    gen_uncompensated = True
+    gen_nearest_maxima_v_Temp = True
+    gen_nearest_maxima_v_Voltage = True
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
 
-    TCB_TSV_file = f"{path}TCB_Out.tsv"
-    tcb = TCB_TSV(TCB_TSV_file)
-    tcb.plot(show=True)
-
-    scan_path = f"{path}Experiment_2023-01-20_15-19-55\\"
-    scan_path = f"{path}Experiment_2023-01-23_14-48-31\\"
-
+    scans_path = f"{path}Experiment_2023-03-25_01-50-48\\"
+    scans_path = f"{path}Experiment_2023-03-26_01-05-23\\"
+    scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
+    
 
     l2_path = makeLevel2Folder(path)
+    #Generate the Compensated plot
+    if gen_compensated:
+        print("Generating Compensated")
+        generate_gif_plot(scans_path, l2_path, filename = "Compensated.png", compensated = True, prefix = "Hold", sort = "Temperature")
+
     
-    #find all CSV files in the directory
-    os.chdir(scan_path)
-    files = glob.glob("*.csv")
+    if gen_uncompensated:
+        print("Generating Uncompensated")
+        generate_gif_plot(scans_path, l2_path, filename = "Uncompensated.png", compensated = False, prefix = "Hold",voltage = 3.0, sort = "Temperature")
 
-    #Create a list of Scan objects
-    scans = []
-    for file in files:
-        scan = Scan(file)
-        #scan.plot(plot_smoothed = True, convert_to_nm=False,show=True, save=True, save_path=l2_path)
-        scans.append(scan)
-    
-    #Create a Gif of the scan plots
-    #Get all scans With 3.0 V
-    #scans = [scan for scan in scans if scan.voltage == 3.0]
-    #Sort the scans by temperature
-    scans.sort(key=lambda x: x.temperature)
-    
-    #Create a list of the file names of the plots
-    plot_list = []
-    print(f"Plotting all the Scans")
-    for scan in scans:
-        scan.plot(plot_smoothed = True, convert_to_nm=False,show=False, save=True, save_path=l2_path)
-        plot_list.append(f"{l2_path}\\{str(scan.temperature)}C_{str(scan.voltage)}V.png")
+    #Generate the Nearest Maxima vs Temperature plot
+    if gen_nearest_maxima_v_Temp:    
+        plotNearestMaximaVsTemperature(scans_path, l2_path)
 
-    print("Making Gif")
-    createGif(plot_list, l2_path, "UnCompensatedTemperatureSweep", delete_files=True)
-    #Go through all the Scans and find the average distance between the local maxima
+    if gen_nearest_maxima_v_Voltage:
+        # Files = [scan for scan in os.listdir(scans_path) if scan.endswith(".png")]
+        # scans = []
+        # for File in Files:
+        #     scans.append(Scan.Scan(File))
+        # #make sure the compensator is off
+        # scans = Scan.get_scans_with_compensator_state(scans, False)
+        # #Get all the Files at the same temperature
+        # scans = Scan.get_scans_at_temperature(scans, [25.85,25.9])
+        # #Get all the Files with the same prefix
+        # scans = Scan.get_scans_with_prefix(scans, "Hold")
+        # #Sort the scans by voltage
+        # Voltages = Scan.sort_scans_by_attribute(scans, attribute = "Voltage")
+        # print("Done Sorting")
+        # crosssections = []
+        # print("Saving Cross Sections")
+        # #only
+        # processed_scans = []
+        # for volt in Voltages:
+        #     scan = volt[0]
+        #     print(f"Scan: {scan}")
+        #     filename = f"{l2_path}\\CrossSection{scan.temperature}C.png"
+        #     scan.save_cross_section(scans_path, 2000, 10,filename)
+        #     crosssections.append(filename)
+        #     processed_scans.append(scan)
 
-    #find all the scans that have the same temperature
-    print("Grouping the scans by temperature and Voltage")
-    temperature_scan_sets = []
-    temperatureList = []
-    voltageList = []
-    voltage_scan_sets = []
-    for scan in scans:
-        TemperatureScans = []
-        #Find if we already have a scan set with this temperature
-        if scan.temperature not in temperatureList:
-            temperatureList.append(scan.temperature)
-            #Find all the scans that match this temperature
-            for scan2 in scans:
-                if scan.temperature == scan2.temperature:
-                    TemperatureScans.append(scan2)
-            #Make a new scan set with the matching scans
-            temperature_scan_sets.append(TemperatueScanSet(scan.temperature, TemperatureScans))
-        
-        voltageScans = []
-        #If the Voltage is not in the list of voltages add it to the list
-        if scan.voltage not in voltageList:
-            voltageList.append(scan.voltage)
-            #Find all the scans that match this voltage
-            for scan2 in scans:
-                if scan.voltage == scan2.voltage:
-                    voltageScans.append(scan2)
-            #Make a new scan set with the matching scans
-            voltage_scan_sets.append(VoltageScanSet(scan.voltage, voltageScans))
 
-    #plot  the scans that have the same voltage
-    filenames = []
-    for voltage_scan_set in voltage_scan_sets:        
-        filenames.append(voltage_scan_set.plotFirstLocalMaximasVsTemperature(save=True, folder=l2_path))
+        plotNearestMaximaVsVoltage(scans_path, l2_path)
 
-    createGif(filenames, l2_path, filename="TemperatrueSweep")
+    #Generate a plot of nearest maxima vs Voltage for all temperatures
+    if gen_nearest_maxima_v_Voltage:
 
-    #plot the scans that have the same temperature
-    for temperature_scan_set in temperature_scan_sets:
-        temperature_scan_set.plotFirstLocalMaximas(save=True, folder=l2_path)
-    
+        temperatures = [24,26,28]
+        plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, temperatures)
 
-    #make an Experiment Set
-    experiment_set = ExperimentSet(scans, l2_path)
-    #3d plot
-    print("Creating 3D Plots")
-    experiment_set.plot3DLocalMaximas(scans, save=True, save_path=l2_path)
-    #Run a Correlation based on a seed
-    seed_scan = None
-    for scan in scans:
-        if scan.temperature == 23.1:
-            seed_scan = scan
-    experiment_set.correlateAllScans(seed_scan, save=True, save_path=l2_path)
 
-    print("Creating a CSV of the Data Collected at Temperature: {CSVTemp}") 
-    for tempSet in temperature_scan_sets:
-        plot, Smoothed = tempSet.plotFirstLocalMaxima(show = True, save=True, save_path=l2_path, FixDiscontinuities=True)
-        tempSet.createCSVOfVoltageSortedByPosition(save_path=l2_path, FixedData=Smoothed)
-    
-    
-    
-    # # plotLocalMaximasVsVoltageSameTemperature(scans, fit_a_line=True, save=True, save_path=l2_path)
-    # # #2d plot
-    #plotLocalMaximasVsTemperatureSameVoltage(scans, fit_a_line=True, save=True, save_path=l2_path)
-
-    #find the correlation of every other scan in the set of temperature scans
-    #Find the Scan that is closest to 23C and 3.0V
-    # seed_scan = None
-    # files = []
-    # for scan in scans:
-    #     if scan.temperature == 23.1:
-    #         seed_scan = scan
-    #         print("Creating Correlation Plots")
-    #         correlation_matrix, filename = findCorrelation(seed_scan, temperature_scan_sets, save=True, save_path=l2_path)
-    #         files.append(filename)
-    # #Create a Gif out of the correlation plots
-    # createGif(files, save_path=l2_path)
-    
     print('Done')
