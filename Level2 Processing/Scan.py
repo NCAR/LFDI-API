@@ -116,7 +116,7 @@ class Scan:
         plt.close()
         plt.figure()
         plt.title(f"{self.prefix} {self.temperature}C {self.voltage}V Compensator {self.compensated} {self.wavelength}nm")
-        plt.ylabel("Intensity")
+        plt.ylabel("Intensity (ADU)")
         #Convert the x axis to nm
         plt.xlabel("Wavelength (nm)")
         #Camera is actually 12 bit, but the camera driver is set to 16 bit; should we scle back to 12 bit?
@@ -137,7 +137,7 @@ class Scan:
             print(f"Holding Position {ConversionEquation(self.nearest_maxima)}nm")
             
             #Plot the maxima with a vertical line
-            plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest H-Alpha peak")
+            plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest transmission peak to H-alpha")
             
         
         #plot a vertical line at 1093 pixels
@@ -229,6 +229,7 @@ def sort_scans_by_attribute(scans, attribute = "Voltage"):
         unique_voltages = set([float(scan.voltage) for scan in scans])
         #Sort the voltages
         unique_voltages = sorted(unique_voltages)
+        
         #Loop through all of the unique voltages
         for voltage in unique_voltages:
             #Get all of the scans at the voltage
