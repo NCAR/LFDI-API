@@ -1,8 +1,8 @@
 #Connect to the LFDI TCB through a serial port
 #Creates Commands and executes in the following manner
-#User wants to set controller 1's set point:
+#User wants to set controller 1's set point to 25C:
 #lfdi.set_controller_setpoint(1, 25)
-#serial Send commands
+# serial Send commands
 #'controller' -- go to the controller context menu
 #'c1' -- select controller 1
 #'t25' -- set the controller to 25
@@ -125,6 +125,8 @@ class Controller(object):
         return info
         
 
+# This Works as a data class for the Compensators #Controlling the Peak to Peak Voltage applied to the Optic
+#         
 class Compensator(object):
 
 
@@ -212,21 +214,84 @@ class Compensator(object):
     
 
     
+    # Data Class for the GPIOs
+class GPIO(object):
+
+    def __init__(self, number):
+        self.number = number
+        self.header = "GPIO\tEnabled"
+        self.state = False
+        return
+
+    def __del__(self):
+        return
+
+    def update_data(self, data):
+        self.enabled = data[1]
+        return
+
+    def get_info(self):
+        info = f"GPIO{self.number}\t{self.state}"
+        return info
+
+    def get_raw_data_command(self):
+        return "r"
+
+    def get_state_command(self):
+        return "e"
+
+    def get_state_response(self):
+        return f"GPIO{self.number} set to"
+
+
+class Bipolar(object):
+
+    def __init__(self, number):
+        self.number = number
+        self.header = "Bipolar\tfrequency\tpulses\tPeak2Peak\tEnabled"
+        self.frequency = 0
+        self.pulses = 0
+        self.voltage = 0
+        self.enabled = False
+
+        return
+
+    def __del__(self):
+        return
+
+    def update_data(self, data):
+        self.frequency = data[1]
+        self.pulses = data[2]
+        self.voltage = data[3]
+        self.enabled = data[4]
+        return
     
+    def get_info(self):
+        info = f"Bipolar{self.number}\t{self.frequency}\t{self.pulses}\t{self.voltage}\t{self.enabled}"
+        return info
     
+    def get_raw_data_command(self):
+        return "r"
+    
+    def get_frequency_command(self, frequency):
+        return f"f{frequency}"
+    
+
 
 class LFDI_TCB(object):
 
 
-    def __init__(self, com_port, baud_rate):
+    def __init__(self, com_port, baud_rate = 9600):
         self.com_port = com_port
         self.baud_rate = baud_rate
         self.OpenConnection()
         self.ser.timeout = 1
         self.ser.write_timeout = 1
         
-        self.Controllers = [Controller(1)]
-        self.Compensators = [Compensator(1), Compensator(2), Compensator(3), Compensator(4), Compensator(5), Compensator(6)]
+        self.Controllers = [Controller(1), Controller(2), Controller(3)] # Create the Controllers
+        self.Compensators = [Compensator(1), Compensator(2), Compensator(3), Compensator(4), Compensator(5), Compensator(6)] #Create the Compensators
+        self.GPIOs = [GPIO(1), GPIO(2), GPIO(3), GPIO(4), GPIO(5)]
+        self.Bipolars = [Bipolar(1), Bipolar(2)]
         self.current_context = "main"
         self.valid_contexts = ["main", "controller", "compensator"]
         
@@ -237,6 +302,13 @@ class LFDI_TCB(object):
         #add compensator headers
         for compensator in self.Compensators:
             self.header_format += f"{compensator.header}\t"
+        #add gpio headers
+        for gpio in self.GPIOs:
+            self.header_format += f"{gpio.header}\t"
+        #add bipolar headers
+        for bipolar in self.Bipolars:
+            self.header_format += f"{bipolar.header}\t"
+            
 
     def OpenConnection(self):
         self.ser = serial.Serial(self.com_port, self.baud_rate, timeout = 2)
@@ -572,6 +644,28 @@ class LFDI_TCB(object):
                     break
         return
 
+    def parse_gpio_data(self, raw_data:list[str]):
+        #For each line in the data find the GPIO and update the data
+        for line in raw_data:
+            terms = line.split(" ")
+            #Go through each GPIO and check if the line is for that GPIO
+            for gpio in self.GPIOs:
+                if str(gpio.number) in terms[0]:
+                    gpio.update_data(terms)
+                    break
+        return
+    
+    def parse_bipolar_data(self, raw_data:list[str]):
+        #For each line in the data find the Bipolar and update the data
+        for line in raw_data:
+            terms = line.split(" ")
+            #Go through each Bipolar and check if the line is for that Bipolar
+            for bipolar in self.Bipolars:
+                if str(bipolar.number) in terms[0]:
+                    bipolar.update_data(terms)
+                    break
+        return
+
     #Parse the Raw Data. 
     def parse_raw_data(self, raw_data:str):
         try:
@@ -589,15 +683,30 @@ class LFDI_TCB(object):
                 if self.Compensators[0].header in raw_data[i]:
                     break
             CompensatorHeaderLine = i
-            
+            #find the line that contains the header of the GPIO 
+            for i in range(len(raw_data)):
+                if "GPIO" in raw_data[i]:
+                    break
+            GPIOHeaderLine = i
+            #find the line that contains the header of the Bipolar
+            for i in range(len(raw_data)):
+                if "Bipolar" in raw_data[i]:
+                    break
+            BipolarHeaderLine = i
+
             #Get all the lines between the Controller and Compensator Header
             controller_raw_data = raw_data[ControllerHeaderLine+1:CompensatorHeaderLine]
             self.parse_controller_data(controller_raw_data)
-
             #Get all the lines between the Compensator and the end of the file
-            compensator_raw_data = raw_data[CompensatorHeaderLine+1:]
+            compensator_raw_data = raw_data[CompensatorHeaderLine+1:GPIOHeaderLine]
             self.parse_compensator_data(compensator_raw_data)
-
+            #Get all the lines between the GPIO and the end of the file
+            gpio_raw_data = raw_data[GPIOHeaderLine+1:BipolarHeaderLine]
+            self.parse_gpio_data(gpio_raw_data)
+            #Get all the lines between the Bipolar and the end of the file
+            bipolar_raw_data = raw_data[BipolarHeaderLine+1:]
+            self.parse_bipolar_data(bipolar_raw_data)
+            
             return 0
 
         except IndexError as e:
@@ -627,112 +736,151 @@ class LFDI_TCB(object):
         #Get the info from all the compensators
         for compensator in self.Compensators:
             info += compensator.get_info() + '\t'
+        for gpio in self.GPIOs:
+            info += gpio.get_info() + '\t'
+        for bipolar in self.Bipolars:
+            info += bipolar.get_info() + '\t'
         return info
 
 
 
 
-#Example Code
+# Example Code
 if __name__ == "__main__":
-    #Test Functionality
-    lfdi = LFDI_TCB("COM3", 9600)
-
-    #Test Header
-    file = open('Test.tsv', "w")
-    file.write(f"{lfdi.header_format}\n")
-    file.write(f"{lfdi.get_info()}\n")
-    file.close()
-
-    #Test the Controller
-    # lfdi.set_controller_kp(1, 1)
-    # lfdi.set_controller_ki(1, 1)
-    # lfdi.set_controller_kd(1, 1)
-    # lfdi.set_controller_setpoint(1, 25)
-    # lfdi.set_controller_frequency(1,200)
-    # lfdi.set_controller_hist(1,26)
-    # lfdi.set_controller_i2c(1,0)
-    # lfdi.set_controller_enable(1,True)
-    # file = open('Test.tsv', "a")
-    # file.write(f"{lfdi.get_info()}\n")
-    # file.close()
-
-    for compensator in lfdi.Compensators:
-        lfdi.set_compensator_i2c(compensator.number,00)
-        lfdi.set_compensator_voltage(compensator.number,10)
-        lfdi.set_compensator_wavelength(compensator.number,100)
-        lfdi.set_compensator_enable(compensator.number, True)
-        file = open('Test.tsv', "a")
-        file.write(f"{lfdi.get_info()}\n")
-        file.close()
-
-    exit()
-    
-
-
-
-
-
-    #Prompt the user to set a temperature
-    temp = input("Enter a set point temperature: ")
-    #Prompt the user to select an output file
-    file_name = input("Enter a file name to output data to: ")
-    #Prompt the user to select a sample rate
-    sample_rate = int(input("How many Seconds between Samples: "))
-    #Ask the user if they want to use a configuration file for the PID
-    use_config = input("Set the values for PID? (y/n) (if \"n\" the Default values of the kp =1  kd = 0 and ki = 0 will be used): ")
-    if use_config == "y":
-        kp = input("Enter a value for kp: ")
-        ki = input("Enter a value for ki: ")
-        kd = input("Enter a value for kd: ")
-    if use_config == "n":
-        kp = 1
-        ki = 0
-        kd = 0
-    try: 
+    #See if User Wants an Automated Test or a Manual Test
+    test = input("Automated Test? (y/n): ")
+    if test == "y":
+        #Test Functionality
         lfdi = LFDI_TCB("COM3", 9600)
-    except:
-        print("Could not connect to LFDI_TCB")
-        exit()
-    #Set the temperature
-    print(lfdi.set_controller_setpoint(1,temp))
-    #Set the PID values
-    print(lfdi.set_controller_kp(1,kp))
-    print(lfdi.set_controller_ki(1,ki))
-    print(lfdi.set_controller_kd(1,kd))
-    
 
-    #Open the file
-    file = open(file_name, "w")
-    #Write the header
-    file.write(lfdi.header_format)
-    file.close()
-    #Print Information to the User
-    print("Starting Data Collection")
-    print("Press Ctrl+C to stop")
-    print(lfdi.set_controller_enable(1, True))
-    #Start the data collection
-    while True:
+        #Test Header
+        file = open('Test.tsv', "w")
+        file.write(f"{lfdi.header_format}\n")#Writes the Header to the First line of the File
+        file.write(f"{lfdi.get_info()}\n") #Writes the Data to the Second line of the File
+        file.close() #Closes the File
+
+        #Test the Controller
+        for controller in lfdi.Controllers:
+            print(f"Testing Controller {controller.number}")
+            print(f"Setting Controller {controller.number} PID to 1,1,1")
+            lfdi.set_controller_kp(controller.number, 1)
+            lfdi.set_controller_ki(controller.number, 1)
+            lfdi.set_controller_kd(controller.number, 1)
+            print(f"Setting Controller {controller.number} Setpoint to 30 (light on)")
+            lfdi.set_controller_setpoint(controller.number, 30)
+            print(f"Setting Controller {controller.number} Frequency to 200")
+            lfdi.set_controller_frequency(controller.number,200)
+            print(f"Setting Controller {controller.number} History to 26")
+            lfdi.set_controller_hist(controller.number,26)
+            print(f"Setting Controller {controller.number} i2c to 0")
+            lfdi.set_controller_i2c(controller.number,0)
+            print(f"Enabling Controller {controller.number} Heater Light Should be on")
+            lfdi.set_controller_enable(controller.number,True)
+            print(f"Getting Controller {controller.number} Info and Writing to File Test.tsv")
+            file = open('Test.tsv', "a")
+            file.write(f"{lfdi.get_info()}\n")
+            file.close()
+            print(f"Sleeping for 10 Seconds")
+            sleep(5)
+            print(f"Setting Controller {controller.number} Setpoint to 20 (light off)")
+            lfdi.set_controller_setpoint(controller.number, 20)
+            print(f"Getting Controller {controller.number} Info and Writing to File Test.tsv")
+            file = open('Test.tsv', "a")
+            file.write(f"{lfdi.get_info()}\n")
+            file.close()
+            print(f"Sleeping for 10 Seconds")
+            sleep(5)
+            print(f"Disabling Controller {controller.number} Heater Light Should be off")
+            lfdi.set_controller_enable(controller.number,False)
+            print(f"Getting Controller {controller.number} Info and Writing to File Test.tsv")
+            file = open('Test.tsv', "a")
+            file.write(f"{lfdi.get_info()}\n")
+            file.close()
+
+
+
+        for compensator in lfdi.Compensators:
+            print(f"Testing Compensator {compensator.number}")
+            print(f"Setting Compensator {compensator.number} I2C to 00")
+            lfdi.set_compensator_i2c(compensator.number,00) #Set the i2c address of the sensor
+            print(f"Setting Compensator {compensator.number} Voltage to 10")
+            lfdi.set_compensator_voltage(compensator.number,10) #Set the voltage peak to peak of the compensator
+            print(f"Setting Compensator {compensator.number} Wavelength to 100")
+            lfdi.set_compensator_wavelength(compensator.number,100) #Set the wavelength of the compensator
+            print(f"Enabling Compensator {compensator.number}")
+            lfdi.set_compensator_enable(compensator.number, True) #Enable the compensator
+            file = open('Test.tsv', "a") #Open the file
+            file.write(f"{lfdi.get_info()}\n") #Write the data to the file
+            file.close() #Close the file
+
+        exit()
         
+    else:
+
+
+
+
+        #Prompt the user to set a temperature
+        temp = input("Enter a set point temperature: ")
+        #Prompt the user to select an output file
+        file_name = input("Enter a file name to output data to: ")
+        #Prompt the user to select a sample rate
+        sample_rate = int(input("How many Seconds between Samples: "))
+        #Ask the user if they want to use a configuration file for the PID
+        use_config = input("Set the values for PID? (y/n) (if \"n\" the Default values of the kp =1  kd = 0 and ki = 0 will be used): ")
+        if use_config == "y":
+            kp = input("Enter a value for kp: ")
+            ki = input("Enter a value for ki: ")
+            kd = input("Enter a value for kd: ")
+        if use_config == "n":
+            kp = 1
+            ki = 0
+            kd = 0
+        try: 
+            lfdi = LFDI_TCB("COM3", 9600)
+        except:
+            print("Could not connect to LFDI_TCB")
+            exit()
+        #Set the temperature
+        print(lfdi.set_controller_setpoint(1,temp))
+        #Set the PID values
+        print(lfdi.set_controller_kp(1,kp))
+        print(lfdi.set_controller_ki(1,ki))
+        print(lfdi.set_controller_kd(1,kd))
         
+
         #Open the file
-        file = open(file_name, "a")
-        #Parse the raw data
-        data = lfdi.get_info()
-        print(data)
-        print("LFDI Compensator will now sweep voltage from 0 to 10")
-        lfdi.set_compensator_enable(3, True)
-        for i in range(10):
-            print(lfdi.set_compensator_voltage(3, i))
-            file.write(f"{lfdi.get_info}\r\n")
-            sleep(2)
-        
-        
-        
-        #Write the tsv data to the file
-        file.write(f"{lfdi.get_info}\r\n")
-        #Close the file
+        file = open(file_name, "w")
+        #Write the header
+        file.write(lfdi.header_format)
         file.close()
-        #Sleep for the sample rate
-        sleep(sample_rate)
+        #Print Information to the User
+        print("Starting Data Collection")
+        print("Press Ctrl+C to stop")
+        print(lfdi.set_controller_enable(1, True))
+        #Start the data collection
+        while True:
+            
+            
+            #Open the file
+            file = open(file_name, "a")
+            #Parse the raw data
+            data = lfdi.get_info()
+            print(data)
+            print("LFDI Compensator will now sweep voltage from 0 to 10")
+            lfdi.set_compensator_enable(3, True)
+            for i in range(10):
+                print(lfdi.set_compensator_voltage(3, i))
+                file.write(f"{lfdi.get_info}\r\n")
+                sleep(2)
+            
+            
+            
+            #Write the tsv data to the file
+            file.write(f"{lfdi.get_info}\r\n")
+            #Close the file
+            file.close()
+            #Sleep for the sample rate
+            sleep(sample_rate)
 
     #print("Done")
