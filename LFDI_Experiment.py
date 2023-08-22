@@ -458,7 +458,7 @@ if __name__ == "__main__":
         spectrometer = Spectrograph.Spectrometer()
         spectrometer.camera.auto_exposure = False
     except:
-        print("Could not connect to Spectrometer")
+        print("Could not connect to Spectrometer Camera")
         exit()
     
     #Create the LFDI_TCB
@@ -468,7 +468,7 @@ if __name__ == "__main__":
         lfdi.set_controller_ki(controller_number=1,ki=0)
         lfdi.set_controller_kp(controller_number=1,kp=1)
     except:
-        print("Could not connect to LFDI_TCB")
+        print("Could not connect to LFDI_TCB On Com3")
         exit()
     
     #ask the user if they want to sample for ambient temperature or enter it manually

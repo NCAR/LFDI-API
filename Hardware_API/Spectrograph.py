@@ -160,7 +160,7 @@ def end_trigger(start):
         return False
 
 if __name__ == '__main__':
-    #AnExample of how to Use the Spectrometer Class
+    #AnExample of how to Use the Spectrometer Class Mostly Just Encapsulates the ZWO Class and Gets Continuous output from the ZWO Camera
     spec = Spectrometer()
     print("Output Without auto Exposure")
     spec.enable_auto_exposure(False)

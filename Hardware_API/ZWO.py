@@ -7,6 +7,7 @@ class ZWO_Camera:
         # Find the Library for the ZWO Camera
         asi.init('C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\ASI SDK\\lib\\x64\\ASICamera2.dll')
         #Use the First and hopefully the only camera attached to the System
+        print("WARNING This Software Uses the First ASI Camera It finds when scanning Ports")
         self.camera = asi.Camera(0)
         self.camera_info = self.camera.get_camera_property()
         
