@@ -264,12 +264,12 @@ def sort_scans_by_attribute(scans, attribute = "Voltage"):
 if __name__ == "__main__":
 
     #load data from file
-    scans_path = "C:/Users/mjeffers/Desktop/LFDI Entire Data Set"
+    scans_path = "C:/Users/mjeffers/Desktop/TempSweep/Experiment_2023-03-26_04-07-04"
     Files = [scan for scan in os.listdir(scans_path) if scan.endswith(".png")]
     print(Files)
     scans = []
     for File in Files:
-        scans.append(Scan(File))
+        scans.append(Scan(File,scans_path))
 
     
     #Get all of the scans with the prefix "Slew"
@@ -280,14 +280,24 @@ if __name__ == "__main__":
     print("Hold Scans: ", len(HoldScans))
 
 
-    #Sort the Slew Scans by Voltage
-    SlewScans = sort_scans_by_attribute(SlewScans, "Voltage")
-    #Sort the Hold Scans by Voltage
-    HoldScans = sort_scans_by_attribute(HoldScans, "Voltage")
+    #Get All of the Scans with the Compensator On
+    SlewScans = get_scans_with_compensator_state(SlewScans, True)
+    HoldScans = get_scans_with_compensator_state(HoldScans, True)
+    print("Slew Scans: ", len(SlewScans))
+    print("Hold Scans: ", len(HoldScans))
+
     for scans in HoldScans:
-        print("Voltage: ", scans[0].voltage)
-        print("Number of Scans: ", len(scans))
         for scan in scans:
-            scan.plot_cross_section(scans_path, 2000, 50)
+            scan.plot_cross_section(scans_path, 2000,50)
+
+    # #Sort the Slew Scans by Voltage
+    # SlewScans = sort_scans_by_attribute(SlewScans, "Voltage")
+    # #Sort the Hold Scans by Voltage
+    # HoldScans = sort_scans_by_attribute(HoldScans, "Voltage")
+    # for scans in HoldScans:
+    #     print("Voltage: ", scans[0].voltage)
+    #     print("Number of Scans: ", len(scans))
+    #     for scan in scans:
+    #         scan.plot_cross_section(scans_path, 2000, 50)
 
         

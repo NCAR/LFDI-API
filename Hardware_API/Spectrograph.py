@@ -20,6 +20,7 @@ from functools import partial
 #This Class is to Control the Peripherials attached to the Spectrometer
 class Spectrometer:
     def __init__(self):
+        
         self.camera = ZWO.ZWO_Camera()
         self.camera.set_exposure(0.1)
         self.camera.set_binning(1)

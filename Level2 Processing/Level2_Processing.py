@@ -538,10 +538,95 @@ if __name__ == '__main__':
     scans = get_all_scans(scans_path)
 
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, voltage = 4.5,temperature= [24.90,25], prefix = "Hold", sort = "Temperature")
+    scans = filter_scans(scans, compensated = True, prefix = "Hold", sort = "Temperature")
+
 
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
 
+    #Get the nearest maxima for each scan
+    for scan in scans:
+        print(scan.nearest_maxima)
+    #plot the nearest maxima vs Temperature
+    nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+    #Get the temperatures for each scan
+    temperatures = [scan.temperature for scan in scans]
+    #Create the plot
+    fig, ax = plt.subplots()
+    ax.plot(temperatures, nearest_maxima, 'o')
+    ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',
+        title='Nearest Maxima to H-Alpha (nm) vs Temperature')
+    ax.grid()
+    #show the plot
+    plt.show()
+    #Find the RMS of the nearest maxima from all the scans
+    maximas = []
+    maximas = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+    #Find the mean nearest maxima for all of the scans
+    mean_nearest_maxima = np.mean(maximas)
+    print(f"Mean Nearest Maxima: {mean_nearest_maxima}")
+    #Find the RMS of the nearest maxima from all the scans
+    #Sum the squares of the differences from the mean
+    square_diff = 0
+    for i in range(len(maximas)):
+        square_diff += (maximas[i] - mean_nearest_maxima)**2
+    #Divide by the number of scans
+    nearest_maxima = square_diff/len(maximas)
+    #Take the square root
+    rms = np.sqrt(nearest_maxima)
+    print(f"RMS: {rms}")
+    #Convert the nearest maxima to nm
+    
+
+    #make a Gif of the cross sections
+    createGif(crosssections, l2_path, filename = "CrossSections.gif", delete_files = True)
+    
+
+
+    #Do the same for the uncompensated scans
+    scans = get_all_scans(scans_path)
+
+    #Filter Scans to only get scans at 3.0V
+    scans = filter_scans(scans, compensated = False, prefix = "Hold",voltage = 3.0, sort = "Temperature")
+
+    #process the Scans
+    crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
+    crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
+
+    #Get the nearest maxima for each scan
+    for scan in scans:
+        print(scan.nearest_maxima)
+    #plot the nearest maxima vs Temperature
+    nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+    #Get the temperatures for each scan
+    temperatures = [scan.temperature for scan in scans]
+    #Create the plot
+    fig, ax = plt.subplots()
+    ax.plot(temperatures, nearest_maxima, 'o')
+    ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',
+        title='Nearest Maxima to H-Alpha (nm) vs Temperature')
+    ax.grid()
+    #show the plot
+    plt.show()
+    #Find the RMS of the nearest maxima from all the scans
+    maximas = []
+    maximas = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
+    #Find the mean nearest maxima for all of the scans
+    mean_nearest_maxima = np.mean(maximas)
+    print(f"Mean Nearest Maxima: {mean_nearest_maxima}")
+    #Find the RMS of the nearest maxima from all the scans
+    #Sum the squares of the differences from the mean
+    square_diff = 0
+    for i in range(len(maximas)):
+        square_diff += (maximas[i] - mean_nearest_maxima)**2
+    #Divide by the number of scans
+    nearest_maxima = square_diff/len(maximas)
+    #Take the square root
+    rms = np.sqrt(nearest_maxima)
+    print(f"RMS: {rms}")
+    #Convert the nearest maxima to nm
+
+    #make a Gif of the cross sections
+    createGif(crosssections, l2_path, filename = "CrossSectionsUncompensated.gif", delete_files = True)
 
     print('Done')

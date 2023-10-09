@@ -227,7 +227,7 @@ class GPIO(object):
         return
 
     def update_data(self, data):
-        self.enabled = data[1]
+        self.state = data[1]
         return
 
     def get_info(self):
@@ -685,6 +685,7 @@ class LFDI_TCB(object):
             CompensatorHeaderLine = i
             #find the line that contains the header of the GPIO 
             for i in range(len(raw_data)):
+                print(raw_data[i])
                 if "GPIO" in raw_data[i]:
                     break
             GPIOHeaderLine = i
@@ -751,8 +752,9 @@ if __name__ == "__main__":
     test = input("Automated Test? (y/n): ")
     if test == "y":
         #Test Functionality
-        lfdi = LFDI_TCB("COM3", 9600)
-
+        lfdi = LFDI_TCB("COM4", 9600)
+        #print(lfdi.get_info())
+        #time.sleep(10000)
         #Test Header
         file = open('Test.tsv', "w")
         file.write(f"{lfdi.header_format}\n")#Writes the Header to the First line of the File
