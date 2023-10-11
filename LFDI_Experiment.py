@@ -7,73 +7,73 @@ import os
 import datetime
 from functools import partial
 
-#All filenames in the experiment should follow the following convention
-#{PREFIX}_{DATETIME}_{VOLTAGE}V_{TEMPERATURE}C_Comp{COMPENSATION}_{WAVELENGTH}nm
-#Where [PREFIX] is a general purpose prefix for the file can be used however you want as long as it contains valid file name caracters and no periods, spaces or underscores
-#Where [DATETIME] is the date and time of the experiment in the format YYYY-MM-DD_HH-MM-SS
-#Where [VOLTAGE] is the Drive Voltage of the optic volts
-#Where [TEMPERATURE] is the temperature of the crystal in degrees Celsius
-#Where [COMPENSATION] is the the indicator fo if the Compensation Algorythim is on or off [ON/OFF]
-#Where [WAVELENGTH] is the wavelength of the light in nanometers ie 656.28 if the compensator was not used this should read 0
+# All filenames in the experiment should follow the following convention
+# {PREFIX}_{DATETIME}_{VOLTAGE}V_{TEMPERATURE}C_Comp{COMPENSATION}_{WAVELENGTH}nm
+# Where [PREFIX] is a general purpose prefix for the file can be used however you want as long as it contains valid file name caracters and no periods, spaces or underscores
+# Where [DATETIME] is the date and time of the experiment in the format YYYY-MM-DD_HH-MM-SS
+# Where [VOLTAGE] is the Drive Voltage of the optic volts
+# Where [TEMPERATURE] is the temperature of the crystal in degrees Celsius
+# Where [COMPENSATION] is the the indicator fo if the Compensation Algorythim is on or off [ON/OFF]
+# Where [WAVELENGTH] is the wavelength of the light in nanometers ie 656.28 if the compensator was not used this should read 0
 
 
 
 
 
-#test out the Compensation algos at various temps and wavelengths
+# test out the Compensation algos at various temps and wavelengths
 def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp, end_temp, step, tolerance, folder):
     print(f"Start Temp {start_temp}")
     print(f"End Temp {end_temp}")
     print(f"Step Temp {step}")
-    #Create a list of temperatures to cycle through
-    #Go from the low temperature to the high temperature then back to the low temperature
+    # Create a list of temperatures to cycle through
+    # Go from the low temperature to the high temperature then back to the low temperature
     temperatures = np.arange(start_temp, end_temp, step)
     print(f"Temps: {temperatures}")
     temperatures = np.append(temperatures, np.arange(end_temp, start_temp, -step))
     print(f"Temps: {temperatures}")
     wavelengths = np.arange(20, 420, 50)
-    #Create a list to store the filenames of the images
+    # Create a list to store the filenames of the images
     filename = f"{folder}\\TCB_Out.tsv"
     file = open(filename, "w")
     file.write(f"{LFDI_TCB.header_format}\n")
     file.close()
-    #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
-    #Turn on the Auto Compensator Algo on compensator 3
+    # Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
+    # Turn on the Auto Compensator Algo on compensator 3
     LFDI_TCB.set_compensator_auto(3)
-    #Dummy wave to hold in place
+    # Dummy wave to hold in place
     LFDI_TCB.set_compensator_wavelength(3,100)
-    #Enable the Compensator
+    # Enable the Compensator
     LFDI_TCB.set_compensator_enable(3,True)
     
-    #Go through all of our wavelengths
+    # Go through all of our wavelengths
     for wavelength in wavelengths:
-        #Set the Compensator to the current wavelength
+        # Set the Compensator to the current wavelength
         LFDI_TCB.set_compensator_wavelength(3,wavelength)
-        #Go through the temperatures
+        # Go through the temperatures
         for temperature in temperatures:
-            #Set the temperature
+            # Set the temperature
             LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
             LFDI_TCB.set_controller_enable(controller_number = 1, enable = True)
             temporal_resolution = 1*60 #1 minute
-            #Continuously output until we reach the set point
+            # Continuously output until we reach the set point
             while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
-                #Get the Current time and output the spectrograph for a minute
+                # Get the Current time and output the spectrograph for a minute
                 now = time.time()
                 spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
-                #Take a measurement
-                #Get the Current Temp From LFDI
+                # Take a measurement
+                # Get the Current Temp From LFDI
                 file = open(filename,"a")
                 file.write(f"{LFDI_TCB.get_info()}\n")
                 file.close()
                 current_temp = LFDI_TCB.Controllers[0].average
-                #Format the Current Temp to be a string with 2 decimal places
+                # Format the Current Temp to be a string with 2 decimal places
                 current_temp = f"{float(current_temp):.2f}"
                 os.rename(spectrometer.current_crosssection, f"{folder}/Slew_{LFDI_TCB.Compensators[2].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[2].voltage}V.csv")
             print(f"Reached {temperature}C")
             print("Waiting 5 minutes")
-            #Wait For the Crystal to warm through out
+            # Wait For the Crystal to warm through out
             now = time.time()
-            seconds_to_wait = 300 #wait for 5 min
+            seconds_to_wait = 300 # wait for 5 min
             while not wait_time(now, seconds_to_wait):
                 current_time = time.time()
                 spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
@@ -81,13 +81,14 @@ def Temp_Compensation(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, s
                 file.write(f"{LFDI_TCB.get_info()}\n")
                 file.close()
                 current_temp = LFDI_TCB.Controllers[0].average
-                #Format the Current Temp to be a string with 2 decimal places
+                # Format the Current Temp to be a string with 2 decimal places
                 current_temp = f"{float(current_temp):.2f}"
                 os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{LFDI_TCB.Compensators[2].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[2].voltage}V.csv")
             print("Finished Waiting")
             print(f"Finished {temperature}C")
         print(f"Finished {wavelength}Pos")
     return
+
 
 def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp: float, end_temp: float, step_temp: float, tolerance: float, start_voltage: float, end_voltage: float, step_voltage : float, folder):
     
@@ -99,42 +100,42 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
     print(f"Step Voltage {step_voltage}")
     
     
-    #Create a list of temperatures to cycle through
-    #Go from the low temperature to the high temperature
+    # Create a list of temperatures to cycle through
+    # Go from the low temperature to the high temperature
     temperatures = np.arange(start_temp, end_temp, step_temp)
     print(f"Temps: {temperatures}")
     
-    #Create a list of the Voltages to cycle through
+    # Create a list of the Voltages to cycle through
     voltages = np.arange(start_voltage, end_voltage, step_voltage)
     print(f"Voltages: {voltages}")
     
-    #Create a list to store the filenames of the images
+    # Create a file to store the data
     filename = f"{folder}\\TCB_Out.tsv"
     file = open(filename, "w")
     file.write(f"{LFDI_TCB.header_format}\n")
     file.close()
 
-
-    #First go through the temperatures with out the Compensation Algorythm
-    #Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
-    LFDI_TCB.set_compensator_enable(3,True)
-    #Go through the temperatures
+    # First go through the temperatures without the Compensation Algorythm
+    # Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
+    #Tun on the output for the First Compensator
+    LFDI_TCB.set_compensator_enable(3, True)
+    # Go through the temperatures
     for temperature in temperatures:
-        #Change to a known state
+        # Change to a known state
         LFDI.Compensators[2].voltage = 3
         LFDI.Compensators[2].enable = True
         
-        #Set the temperature
-        LFDI_TCB.set_controller_setpoint(controller_number = 1, setpoint = temperature)
-        LFDI_TCB.set_controller_enable(controller_number = 1, enable = True)
-        temporal_resolution = 1*60 #1 minute
+        # Set the temperature
+        LFDI_TCB.set_controller_setpoint(controller_number=1, setpoint=temperature)
+        LFDI_TCB.set_controller_enable(controller_number=1, enable=True)
+        temporal_resolution = 1*60 # 1 minute
         while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
-            #Get the Current time and output the spectrograph for a minute
+            # Get the Current time and output the spectrograph for a minute
             now = time.time()
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, now, temporal_resolution))
-            #Take a measurement
-            #Get the Current Temp From LFDI
-            file = open(filename,"a")
+            # Take a measurement
+            # Get the Current Temp From LFDI
+            file = open(filename, "a")
             file.write(f"{LFDI_TCB.get_info()}\n")
             file.close()
             current_temp = LFDI_TCB.Controllers[0].average
@@ -285,7 +286,7 @@ def Run_Endurance_Test(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, 
                 os.rename(spectrometer.current_crosssection, f"{folder}/Hold_{LFDI_TCB.Compensators[2].wave}Pos_{str(time.time())}_{str(current_temp)}C_{LFDI_TCB.Compensators[2].voltage}V.csv")
 
 
-#Sweep the temperature of the TCB and the Voltage applied from the DAC; take an image at each state
+# Sweep the temperature of the TCB and the Voltage applied from the DAC; take an image at each state
 def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp: float, end_temp: float, step_temp:float ,start_voltage:float, end_voltage:float, step_voltage:float, tolerance:float, folder:os.path):
     print(f"Start Temp {start_temp}")
     print(f"End Temp {end_temp}")
@@ -321,7 +322,7 @@ def SquareWave_Sweep(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, st
         print(f"Finished {temperature}C")
     return
 
-#Cycle through Temperatures and take an image at each temperature
+# Cycle through Temperatures and take an image at each temperature
 def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, tolerance, folder):
     print(f"Start Temp {start_temp}")
     print(f"End Temp {end_temp}")
@@ -350,7 +351,7 @@ def temperature_cycle(spectrometer,LFDI_TCB, start_temp, end_temp, step, toleran
         print(f"Finished {temperature}C")
     return
 
-#wait for a certain time from the input time
+# wait for a certain time from the input time
 def wait_time(start, wait_time):
     #Get the current time
     current_time = time.time()
@@ -362,7 +363,7 @@ def wait_time(start, wait_time):
 
 
 
-#Check to see if the TCB temp is at the set point
+# Check to see if the TCB temp is at the set point
 def TCB_at_temp(temp, LFDI_TCB, tolerance):
     #Get the current temperature
     try:
@@ -380,7 +381,7 @@ def TCB_at_temp(temp, LFDI_TCB, tolerance):
 
 
 
-#Make an Experiment folder with date Time stamp
+# Make an Experiment folder with date Time stamp
 def make_experiment_folder():
     #Create the folder name
     now = datetime.datetime.now()
@@ -392,7 +393,7 @@ def make_experiment_folder():
 
 
 
-#This Function will set the camera gain and exposure
+# This Function will set the camera gain and exposure
 def calibrate_camera(spectrometer):
     print("Adjust the Camera settings until the image is in focus\r\nClose the Graph when adjusted")
     spectrometer.continuous_output()
@@ -427,9 +428,9 @@ def calibrate_camera(spectrometer):
             print(f"Value Error {e} Please enter a positive number")
 
         spectrometer.camera.set_exposure(camera_exposure)
-        #Show the Spectrograph output for the User to adjust the camera exposure
+        # Show the Spectrograph output for the User to adjust the camera exposure
         spectrometer.continuous_output()
-        #Ask the user if the camera exposure is good
+        # Ask the user if the camera exposure is good
         camera_exposure_good = input("Is the Camera Exposure Good? (y/n): ")
         if camera_exposure_good == "y":
             camera_exposure_good = True
@@ -437,8 +438,18 @@ def calibrate_camera(spectrometer):
     return
     
 
+# Calibrate the Spectrometer to the H-Alph line
+def calibrate_spectrometer(spectrometer, folder):
+    print("Adjust the Spectrometer until the H-Alph line is centered\r\nClose the Graph when adjusted")
+    spectrometer.continuous_output()
+    os.mkdir(f"{folder}/H-Alpha Calibration")
+    os.rename(spectrometer.current_image, f"{folder}/H-Alpha Calibration/Calibration.tif")
+    os.rename(spectrometer.current_graph, f"{folder}/H-Alpha Calibration/Calibration.png")
+    os.rename(spectrometer.current_crosssection, f"{folder}/H-Alpha Calibration/Calibration.csv")
+    return    
 
-#Function that will guid user through the calibration process
+
+# Function that will guid user through the calibration process
 def calibrate_LED(spectrometer, folder):
     print("Adjust the Intensity of the LED until the signal is no longer clipping\r\nClose the Graph when adjusted")
     spectrometer.continuous_output()
@@ -451,24 +462,26 @@ def calibrate_LED(spectrometer, folder):
     return
 
 
-#Launches here
+# Launches here
 if __name__ == "__main__":
-    #Create the Spectrometer
+    # Create the Spectrometer
     try:
         spectrometer = Spectrograph.Spectrometer()
         spectrometer.camera.auto_exposure = False
-    except:
-        print("Could not connect to Spectrometer Camera")
+
+    except Exception as e:
+        print(f"Could not connect to Spectrometer Camera {e}")
         exit()
     
-    #Create the LFDI_TCB
-    try: 
+    # Create the LFDI_TCB
+    try:
         lfdi = LFDI.LFDI_TCB("COM3", 9600)
-        lfdi.set_controller_kd(controller_number=1,kd=1)
-        lfdi.set_controller_ki(controller_number=1,ki=0)
-        lfdi.set_controller_kp(controller_number=1,kp=1)
-    except:
-        print("Could not connect to LFDI_TCB On Com3")
+        lfdi.set_controller_kd(controller_number=1, kd=1)
+        lfdi.set_controller_ki(controller_number=1, ki=0)
+        lfdi.set_controller_kp(controller_number=1, kp=1)
+    # Except if we can't connect to the LFDI_TCB
+    except Exception as e:
+        print(f"Could not connect to LFDI_TCB On Com3 {e}")
         exit()
     
     #ask the user if they want to sample for ambient temperature or enter it manually
