@@ -117,7 +117,7 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
 
     # First go through the temperatures without the Compensation Algorythm
     # Cycle through the temperatures. Take a measurement while the temperature is moving hold at each temperature for 5 minutes
-    #Tun on the output for the First Compensator
+    #Tun on the output for the First Compensator 
     LFDI_TCB.set_compensator_enable(3, True)
     # Go through the temperatures
     for temperature in temperatures:

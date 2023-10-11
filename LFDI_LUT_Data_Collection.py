@@ -122,7 +122,7 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             file.close()
             current_temp = LFDI_TCB.Controllers[controller_number-1].average
             current_temp = f"{float(current_temp):.2f}"
-            filename = f"Slew_{str(time.time())}_{LFDI_TCB.Compensators[2].voltage}V_{current_temp}C_CompOff_0nm.png"
+            filename = f"Slew_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
             os.rename(spectrometer.current_image, f"{folder}/{filename}")
         
         print(f"Reached {temperature}C")
@@ -136,9 +136,9 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             file = open(filename, "a")
             file.write(f"{LFDI_TCB.get_info()}\n")
             file.close()
-            current_temp = LFDI_TCB.Controllers[0].average
+            current_temp = LFDI_TCB.Controllers[controller_number-1].average
             current_temp = f"{float(current_temp):.2f}"
-            filename = f"Hold_{str(time.time())}_{LFDI_TCB.Compensators[2].voltage}V_{current_temp}C_CompOff_0nm.png"
+            filename = f"Hold_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
             os.rename(spectrometer.current_image, f"{folder}/{filename}")
 
         print("Finished Waiting")
@@ -154,9 +154,9 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             file = open(filename, "a")
             file.write(f"{LFDI_TCB.get_info()}\n")
             file.close()
-            current_temp = LFDI_TCB.Controllers[0].average
+            current_temp = LFDI_TCB.Controllers[controller_number-1].average
             current_temp = f"{float(current_temp):.2f}"
-            filename = f"Hold_{str(time.time())}_{LFDI_TCB.Compensators[2].voltage}V_{current_temp}C_CompOff_0nm.png"
+            filename = f"Hold_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
             os.rename(spectrometer.current_image, f"{folder}/{filename}")
 
         print(f"Finished {temperature}C")
