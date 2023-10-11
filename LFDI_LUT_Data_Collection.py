@@ -145,7 +145,7 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
         print("Cycling through Voltages")
         for voltage in voltages:
             # Set the voltage
-            LFDI_TCB.set_compensator_voltage(3, voltage)
+            LFDI_TCB.set_compensator_voltage(compensator_number-1, voltage)
             # Wait for the voltage to settle
             time.sleep(1)
             # Take a measurement
