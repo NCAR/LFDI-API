@@ -752,7 +752,7 @@ if __name__ == "__main__":
     test = input("Automated Test? (y/n): ")
     if test == "y":
         #Test Functionality
-        lfdi = LFDI_TCB("COM4", 9600)
+        lfdi = LFDI_TCB("COM6", 9600)
         #print(lfdi.get_info())
         #time.sleep(10000)
         #Test Header
@@ -839,7 +839,7 @@ if __name__ == "__main__":
             ki = 0
             kd = 0
         try: 
-            lfdi = LFDI_TCB("COM3", 9600)
+            lfdi = LFDI_TCB("COM6", 9600)
         except:
             print("Could not connect to LFDI_TCB")
             exit()
