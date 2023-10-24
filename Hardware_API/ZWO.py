@@ -79,7 +79,7 @@ class ZWO_Camera:
     #if the save Control values is turned on a text file will be created with the Control Values
     def capture(self, filename):
         self.set_timeout()
-        self.camera.set_control_value(asi.ASI_EXPOSURE, self.auto_exposure)
+        #self.camera.set_control_value(asi.ASI_EXPOSURE, self.auto_exposure)
         self.camera.capture(filename=filename)
         if self.save_control_values_on:
             self.save_control_values(filename)
@@ -116,4 +116,6 @@ if __name__ == '__main__':
     camera.capture('Test_image_Binning2.png')
     camera.set_binning(1)
     camera.capture('Test_image_Binning1.png')
+    camera.set_exposure(3)
+    camera.capture("Test_image_long_exposure.png")
     print(camera)

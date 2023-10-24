@@ -7,7 +7,7 @@
 
 
 
-import Hardware_API.ZWO as ZWO
+import ZWO as ZWO
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -150,7 +150,7 @@ class Spectrometer:
 
     #Enable auto exposure for the ZWO Camera
     def enable_auto_exposure(self, enable):
-        self.camera.auto_exposure = enable
+        self.camera.set_auto_exposure(enable)
         return
 
 #A function that will return true 25 seconds after the entered time Just to test Functionality
@@ -165,7 +165,7 @@ if __name__ == '__main__':
     spec = Spectrometer()
     print("Output Without auto Exposure")
     spec.enable_auto_exposure(False)
-    
+    spec.camera.set_exposure(0.1)
     spec.single_output('Test1')
     spec.continuous_output()
     print("Output With auto Exposure")

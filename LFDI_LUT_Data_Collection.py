@@ -54,7 +54,13 @@
 #For the next Calibration you will be asked to Adjust the brightness of the LED
 
 
-
+import numpy as np
+import Hardware_API.LFDI_API as LFDI
+import time
+import Hardware_API.Spectrograph as Spectrograph
+import os
+import datetime
+from functools import partial
 
 # The Following Function is the Experiment that will be ran to Collect all the Data
 # @param spectrometer: The Spectrometer Object
