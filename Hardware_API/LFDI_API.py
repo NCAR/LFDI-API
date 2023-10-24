@@ -281,10 +281,11 @@ class Bipolar(object):
 class LFDI_TCB(object):
 
 
-    def __init__(self, com_port, baud_rate = 9600):
+    def __init__(self, com_port, baud_rate = 9600, silent = False):
         self.com_port = com_port
         self.baud_rate = baud_rate
         self.OpenConnection()
+        self.silent = silent
         self.ser.timeout = 1
         self.ser.write_timeout = 1
         
@@ -349,7 +350,7 @@ class LFDI_TCB(object):
         return
 
     #Sends Command to the Controller
-    def send_command(self, command, print_command = True, expected_response = None, attempts = 0):
+    def send_command(self, command, print_command =False, expected_response = None, attempts = 0):
         if attempts > 3:
             print(f"Too many attempts to send command {command}\nRestarting Connection")
             self.ser.close()
@@ -388,16 +389,22 @@ class LFDI_TCB(object):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
         expected_response = self.Compensators[compensator_number-1].get_voltage_response()
-        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage), expected_response = expected_response))
+        r = self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage), expected_response = expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
 
     #Set the Compensator compensate
     def toggle_compensator_auto(self, compensator_number):
         self.change_context("compensator")
-        print(self.send_command(f"c{compensator_number}"))
+        r = self.send_command(f"c{compensator_number}")
+        if not self.silent:
+            print(r)
         expected_response = self.Compensators[compensator_number-1].get_auto_response()
-        print(self.send_command(self.Compensators[compensator_number-1].get_auto_command(), expected_response = expected_response))
+        self.send_command(self.Compensators[compensator_number-1].get_auto_command(), expected_response = expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
 
@@ -410,7 +417,9 @@ class LFDI_TCB(object):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
         expected_response = self.Compensators[compensator_number-1].get_i2c_response()
-        print(self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c), expected_response = expected_response))
+        r = self.send_command(self.Compensators[compensator_number-1].get_i2c_command(i2c), expected_response = expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
     
@@ -419,7 +428,9 @@ class LFDI_TCB(object):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
         expected_response = self.Compensators[compensator_number-1].get_enable_response(enable)
-        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable), expected_response=expected_response))
+        r = self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable), expected_response=expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
     
@@ -428,7 +439,9 @@ class LFDI_TCB(object):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
         expected_response = self.Controllers[controller_number-1].get_enable_response(enable)
-        print(self.send_command(self.Controllers[controller_number-1].get_enable_command(enable), expected_response=expected_response))
+        r = self.send_command(self.Controllers[controller_number-1].get_enable_command(enable), expected_response=expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
     
@@ -437,7 +450,9 @@ class LFDI_TCB(object):
         self.change_context("controller")
         self.send_command(f"c{controller_number}")
         expected_response = self.Controllers[controller_number-1].get_i2c_response()
-        print(self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c), expected_response = expected_response))
+        r = self.send_command(self.Controllers[controller_number-1].get_i2c_command(i2c), expected_response = expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
     
@@ -572,7 +587,9 @@ class LFDI_TCB(object):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
         expected_response = self.Compensators[compensator_number-1].get_voltage_response()
-        print(self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage), expected_response=expected_response))
+        r = self.send_command(self.Compensators[compensator_number-1].get_voltage_command(voltage), expected_response=expected_response)
+        if not self.silent:
+            print(r)
         self.change_context("main")
         return
 
@@ -601,7 +618,10 @@ class LFDI_TCB(object):
         self.change_context("compensator")
         self.send_command(f"c{compensator_number}")
         expected_response = self.Compensators[compensator_number-1].get_enable_response(enable)
-        print(self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable), expected_response=expected_response))
+        r = self.send_command(self.Compensators[compensator_number-1].get_enable_command(enable), expected_response=expected_response)
+        if not self.silent:
+            print(r)
+        
         self.change_context("main")
         return
     
@@ -685,7 +705,6 @@ class LFDI_TCB(object):
             CompensatorHeaderLine = i
             #find the line that contains the header of the GPIO 
             for i in range(len(raw_data)):
-                print(raw_data[i])
                 if "GPIO" in raw_data[i]:
                     break
             GPIOHeaderLine = i
