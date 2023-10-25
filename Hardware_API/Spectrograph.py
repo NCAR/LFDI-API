@@ -7,7 +7,7 @@
 
 
 
-import ZWO as ZWO
+import Hardware_API.ZWO as ZWO
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -163,11 +163,11 @@ def end_trigger(start):
 if __name__ == '__main__':
     #AnExample of how to Use the Spectrometer Class Mostly Just Encapsulates the ZWO Class and Gets Continuous output from the ZWO Camera
     spec = Spectrometer()
-    print("Output Without auto Exposure")
-    spec.enable_auto_exposure(False)
-    spec.camera.set_exposure(0.1)
-    spec.single_output('Test1')
-    spec.continuous_output()
+    # print("Output Without auto Exposure")
+    # spec.enable_auto_exposure(False)
+    # spec.camera.set_exposure(0.1)
+    # spec.single_output('Test1')
+    spec.continuous_output(refresh_rate=1)
     print("Output With auto Exposure")
     spec.enable_auto_exposure(True)
     spec.single_output('Test1')

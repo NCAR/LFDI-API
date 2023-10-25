@@ -62,6 +62,34 @@ import os
 import datetime
 from functools import partial
 
+
+# Check to see if the TCB temp is at the set point
+def TCB_at_temp(temp, LFDI_TCB, tolerance):
+    #Get the current temperature
+    try:
+        current_temp = float(LFDI_TCB.Controllers[0].average)
+    except ValueError as e:
+        print(f"Value Error {e} board request may have desynced")
+        return False
+    
+    #Check if the current temperature is within the tolerance of the set point
+    print(f"Sensor at {current_temp} waiting for {(temp - tolerance)} - {(temp + tolerance)}")
+    if (current_temp > (temp - tolerance)) and (current_temp < (temp + tolerance)):
+        return True
+    else:
+        return False
+    
+    # wait for a certain time from the input time
+def wait_time(start, wait_time):
+    #Get the current time
+    current_time = time.time()
+    #Check if the current time is greater than the input time plus the wait time
+    if current_time > (start + wait_time):
+        return True
+    else:
+        return False
+
+
 # The Following Function is the Experiment that will be ran to Collect all the Data
 # @param spectrometer: The Spectrometer Object
 # @param LFDI_TCB: The LFDI_TCB Object
@@ -76,7 +104,7 @@ from functools import partial
 # @return None
 # This will go through the array of temperatures and the array of Voltages step by step and capture Spectra Output to the Experiment Folder
 
-def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI, start_temp: float, end_temp: float, 
+def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI.LFDI_TCB, start_temp: float, end_temp: float, 
                           step_temp: float, tolerance: float, start_voltage: float, end_voltage: float, 
                           step_voltage : float, folder, compensator_number = 3, controller_number = 1):
     
@@ -110,8 +138,8 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
     # Go through the temperatures
     for temperature in temperatures:
         # Change to a known state
-        LFDI.Compensators[compensator_number-1].voltage = 3
-        LFDI.Compensators[compensator_number-1].enable = True
+        LFDI_TCB.Compensators[compensator_number-1].voltage = 3
+        LFDI_TCB.Compensators[compensator_number-1].enable = True
         
         # Set the temperature
         LFDI_TCB.set_controller_setpoint(controller_number=controller_number, setpoint=temperature)
@@ -132,10 +160,10 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             os.rename(spectrometer.current_image, f"{folder}/{filename}")
         
         print(f"Reached {temperature}C")
-        print("Waiting 5 minutes")
+        print("Waiting 60 minutes")
         #Wait For the Crystal to warm through out
         now = time.time()
-        seconds_to_wait = 600 #wait for 10 min
+        seconds_to_wait = 3600 #wait for 1 hr
         while not wait_time(now, seconds_to_wait):
             current_time = time.time()
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
@@ -170,7 +198,7 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
 
 
 
-from LFDI_Experiment import *
+from DataCollection.LFDI_Experiment import make_experiment_folder
 
 if __name__ == "__main__":
     # Create the Spectrometer
@@ -184,14 +212,14 @@ if __name__ == "__main__":
     
     # Create the LFDI_TCB
     try:
-        lfdi = LFDI.LFDI_TCB("COM3", 9600)
+        lfdi = LFDI.LFDI_TCB("COM6", 9600)
         # Setup Initial PID Values
         lfdi.set_controller_kd(controller_number=1, kd=1)
         lfdi.set_controller_ki(controller_number=1, ki=0)
         lfdi.set_controller_kp(controller_number=1, kp=1)
     # Except if we can't connect to the LFDI_TCB
     except Exception as e:
-        print(f"Could not connect to LFDI_TCB On Com3 {e}")
+        print(f"Could not connect to LFDI_TCB On Com6 {e}")
         exit()
         
     # ask the user if they want to sample for ambient temperature or enter it manually
@@ -226,16 +254,16 @@ if __name__ == "__main__":
     # Create folder
     folder = make_experiment_folder()
     # Calibrate the Spectrometer
-    calibrate_spectrometer(spectrometer, folder)
-    calibrate_camera(spectrometer)
-    calibrate_LED(spectrometer, folder)
+    #calibrate_spectrometer(spectrometer, folder)
+    #calibrate_camera(spectrometer)
+    #calibrate_LED(spectrometer, folder)
 
     
     # Cycle through the temperatures
     # SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
     # Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
     # Run_Endurance_Test(spectrometer=spectrometer, LFDI_TCB=lfdi,tolerance=.5, folder= folder)
-    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(ambient_temperature), end_temp=30, step_temp=.5, tolerance=.25, start_voltage = 0 , end_voltage = 12, step_voltage = .1, folder=folder)
+    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(ambient_temperature), end_temp=30, step_temp=.5, tolerance=.25, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder)
 
 
 
