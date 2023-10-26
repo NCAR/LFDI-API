@@ -372,6 +372,8 @@ def filter_scans(scans, **kwargs):
         if "sort" in kwargs:
             print("Sorting by attribute")
             if "only_unique" in kwargs:
+                unique = kwargs["only_unique"]
+                print(f"Using only Unique State: {unique}")
                 scans = Scan.sort_scans_by_attribute(scans, attribute = kwargs["sort"], only_unique=kwargs["only_unique"])
             else:
                 scans = Scan.sort_scans_by_attribute(scans, attribute = kwargs["sort"])
@@ -544,9 +546,8 @@ if __name__ == '__main__':
     print(len(scans))
     #Filter Scans to only get scans at 3.0V
     scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature", only_unique = False)
+    
     print(len(scans))
-    import sys
-    sys.exit()
     
 
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)

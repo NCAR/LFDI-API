@@ -250,12 +250,14 @@ def sort_scans_by_attribute(scans, attribute = "Voltage", only_unique = True):
         for temperature in unique_temperatures:
             #Get all of the scans at the temperature
             scans_at_temperature = get_scans_at_temperature(scans, [temperature, temperature])
+            print(f"Scans at {temperature}: {len(scans_at_temperature)}")
             #Add the scans to the list
             if only_unique:
                 sorted_scans.append(scans_at_temperature[0])
             #Else sort the results by time
             else:
-                sorted_scans.append(sorted(scans_at_temperature, key=lambda scan: scan.timestamp))
+                print("Using All of the Scans")
+                sorted_scans.extend(sorted(scans_at_temperature, key=lambda scan: scan.timestamp))
             
     elif attribute == "Wavelength":
         #Get all of the unique wavelengths
