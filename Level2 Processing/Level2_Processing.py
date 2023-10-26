@@ -371,7 +371,10 @@ def filter_scans(scans, **kwargs):
             scans = Scan.get_scans_at_wavelength(scans, kwargs["wavelength"])
         if "sort" in kwargs:
             print("Sorting by attribute")
-            scans = Scan.sort_scans_by_attribute(scans, attribute = kwargs["sort"])
+            if "only_unique" in kwargs:
+                scans = Scan.sort_scans_by_attribute(scans, attribute = kwargs["sort"], only_unique=kwargs["only_unique"])
+            else:
+                scans = Scan.sort_scans_by_attribute(scans, attribute = kwargs["sort"])
         
         
         return scans
@@ -540,7 +543,7 @@ if __name__ == '__main__':
     scans = get_all_scans(scans_path)
     print(len(scans))
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = False, prefix = "Hold")
+    scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature", only_unique = False)
     print(len(scans))
     import sys
     sys.exit()
@@ -594,7 +597,7 @@ if __name__ == '__main__':
     scans = get_all_scans(scans_path)
 
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = False, prefix = "Hold",voltage = 3.0, sort = "Temperature")
+    scans = filter_scans(scans, compensated = False, prefix = "Hold",voltage = 3.0, sort = "Temperature", only_unique = False)
 
     #process the Scans
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)

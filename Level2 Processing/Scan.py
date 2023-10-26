@@ -235,7 +235,11 @@ def sort_scans_by_attribute(scans, attribute = "Voltage", only_unique = True):
             #Get all of the scans at the voltage
             scans_at_voltage = get_scans_at_voltage(scans, voltage)
             #Add the scans to the list
-            sorted_scans.append(scans_at_voltage[0])
+            if only_unique:
+                sorted_scans.append(scans_at_voltage[0])
+            #Else sort the results by time
+            else:
+                sorted_scans.append(sorted(scans_at_voltage, key=lambda scan: scan.timestamp))
     elif attribute == "Temperature":
         #Get all of the unique temperatures
         unique_temperatures = set([float(scan.temperature) for scan in scans])
@@ -247,7 +251,12 @@ def sort_scans_by_attribute(scans, attribute = "Voltage", only_unique = True):
             #Get all of the scans at the temperature
             scans_at_temperature = get_scans_at_temperature(scans, [temperature, temperature])
             #Add the scans to the list
-            sorted_scans.append(scans_at_temperature[0])
+            if only_unique:
+                sorted_scans.append(scans_at_temperature[0])
+            #Else sort the results by time
+            else:
+                sorted_scans.append(sorted(scans_at_temperature, key=lambda scan: scan.timestamp))
+            
     elif attribute == "Wavelength":
         #Get all of the unique wavelengths
         unique_wavelengths = set([float(scan.wavelength) for scan in scans])
@@ -255,8 +264,14 @@ def sort_scans_by_attribute(scans, attribute = "Voltage", only_unique = True):
         for wavelength in unique_wavelengths:
             #Get all of the scans at the wavelength
             scans_at_wavelength = get_scans_at_wavelength(scans, wavelength)
+            
             #Add the scans to the list
-            sorted_scans.append(scans_at_wavelength[0])
+            if only_unique:
+                sorted_scans.append(scans_at_wavelength[0])
+            #Else sort the results by time
+            else:
+                sorted_scans.append(sorted(scans_at_wavelength, key=lambda scan: scan.timestamp))
+            
     #Return the list
     return sorted_scans
 
