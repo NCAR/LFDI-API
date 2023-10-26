@@ -13,6 +13,7 @@ import numpy as np
 from PIL import Image
 import time
 from functools import partial
+import gc
 
 
 
@@ -127,6 +128,8 @@ class Spectrometer:
             if not plt.fignum_exists(fig.number):
                 print("Figure Closed")
                 break
+        fig.clf()
+        gc.collect()
         return
 
 
@@ -149,6 +152,8 @@ class Spectrometer:
         np.savetxt(crosssection_fn, crosssection, delimiter=',')
         if show:
             plt.show()
+        fig.clf()
+        gc.collect()
         return
 
     #Enable auto exposure for the ZWO Camera
