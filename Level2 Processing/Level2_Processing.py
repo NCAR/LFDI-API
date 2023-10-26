@@ -553,9 +553,14 @@ if __name__ == '__main__':
     nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
     #Get the temperatures for each scan
     temperatures = [scan.temperature for scan in scans]
+    
     #Create the plot
     fig, ax = plt.subplots()
     ax.plot(temperatures, nearest_maxima, 'o')
+    #make it so that each point is marked witht the time it was taken at
+    for i, txt in enumerate([scan.time for scan in scans]):
+        ax.annotate(txt, (temperatures[i], nearest_maxima[i]))
+    
     ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',
         title='Nearest Maxima to H-Alpha (nm) vs Temperature')
     ax.grid()
