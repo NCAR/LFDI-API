@@ -538,17 +538,17 @@ if __name__ == '__main__':
 
 
     scans = get_all_scans(scans_path)
-
+    print(len(scans))
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature")
-
+    scans = filter_scans(scans, compensated = False, prefix = "Hold")
+    print(len(scans))
+    import sys
+    sys.exit()
+    
 
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
-    crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
 
-    #Get the nearest maxima for each scan
-    for scan in scans:
-        print(scan.nearest_maxima)
+    
     #plot the nearest maxima vs Temperature
     nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
     #Get the temperatures for each scan
@@ -558,7 +558,7 @@ if __name__ == '__main__':
     fig, ax = plt.subplots()
     ax.plot(temperatures, nearest_maxima, 'o')
     #make it so that each point is marked witht the time it was taken at
-    for i, txt in enumerate([scan.time for scan in scans]):
+    for i, txt in enumerate([scan.timestamp for scan in scans]):
         ax.annotate(txt, (temperatures[i], nearest_maxima[i]))
     
     ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',

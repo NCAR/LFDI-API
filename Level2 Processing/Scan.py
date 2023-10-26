@@ -220,7 +220,7 @@ def get_scans_with_compensator_state(scans, compensated = True):
 
 #Sort Scans by attribute (Voltage, Temperature, Wavelength)
 #return a list of scans sorted by the attribute
-def sort_scans_by_attribute(scans, attribute = "Voltage"):
+def sort_scans_by_attribute(scans, attribute = "Voltage", only_unique = True):
     #Create a list to hold the scans
     sorted_scans = []
     #Check the attribute

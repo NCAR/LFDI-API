@@ -9,3 +9,5 @@ ASI SDK/demo/demo2.exe
 *.tif
 *.tif
 *.tsv
+*.pkl
+*.gif
