@@ -543,12 +543,6 @@ if __name__ == '__main__':
 
 
     scans = get_all_scans(scans_path)
-    print(len(scans))
-    #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature", only_unique = False)
-    
-    print(len(scans))
-    
     #Check to see if scans have been previously processed in a pickle file
     #If they have been processed then load the pickle file
     #If they have not been processed then process them and save them to a pickle file
@@ -556,11 +550,22 @@ if __name__ == '__main__':
         #Load the pickle file
         with open(f"{scans_path}\\Processed.pkl", 'rb') as f:
             scans = pickle.load(f)
+        
     else:
         crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
         #Save the scans to a pickle file
         with open(f"{scans_path}\\Processed.pkl", 'wb') as f:
             pickle.dump(scans, f)
+        #Save Crosssections:
+        with open(f"{scans_path}\\Crosssections.pkl", 'wb') as f:
+            pickle.dump(crosssections, f)
+    print(len(scans))
+    #Filter Scans to only get scans at 3.0V
+    scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature", only_unique = False)
+    
+    print(len(scans))
+    
+    
             
 
     
