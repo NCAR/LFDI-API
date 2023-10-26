@@ -499,10 +499,12 @@ if __name__ == '__main__':
     gen_nearest_maxima_v_Temp = False
     gen_nearest_maxima_v_Voltage = False
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
+    path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
 
     scans_path = f"{path}Experiment_2023-03-25_01-50-48\\"
     scans_path = f"{path}Experiment_2023-03-26_01-05-23\\"
     scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
+    scans_path = f"{path}Experiment_2023-10-25_22-27-16\\"
     
 
     l2_path = makeLevel2Folder(path)
@@ -538,7 +540,7 @@ if __name__ == '__main__':
     scans = get_all_scans(scans_path)
 
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = True, prefix = "Hold", sort = "Temperature")
+    scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature")
 
 
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
