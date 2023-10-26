@@ -549,8 +549,19 @@ if __name__ == '__main__':
     
     print(len(scans))
     
-
-    crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
+    #Check to see if scans have been previously processed in a pickle file
+    #If they have been processed then load the pickle file
+    #If they have not been processed then process them and save them to a pickle file
+    if os.path.exists(f"{scans_path}\\Processed.pkl"):
+        #Load the pickle file
+        with open(f"{scans_path}\\Processed.pkl", 'rb') as f:
+            scans = pickle.load(f)
+    else:
+        crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
+        #Save the scans to a pickle file
+        with open(f"{scans_path}\\Processed.pkl", 'wb') as f:
+            pickle.dump(scans, f)
+            
 
     
     #plot the nearest maxima vs Temperature
