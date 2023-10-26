@@ -721,11 +721,11 @@ class LFDI_TCB(object):
             compensator_raw_data = raw_data[CompensatorHeaderLine+1:GPIOHeaderLine]
             self.parse_compensator_data(compensator_raw_data)
             #Get all the lines between the GPIO and the end of the file
-            gpio_raw_data = raw_data[GPIOHeaderLine+1:BipolarHeaderLine]
-            self.parse_gpio_data(gpio_raw_data)
+            #gpio_raw_data = raw_data[GPIOHeaderLine+1:BipolarHeaderLine]
+            #self.parse_gpio_data(gpio_raw_data)
             #Get all the lines between the Bipolar and the end of the file
-            bipolar_raw_data = raw_data[BipolarHeaderLine+1:]
-            self.parse_bipolar_data(bipolar_raw_data)
+            #bipolar_raw_data = raw_data[BipolarHeaderLine+1:]
+            #self.parse_bipolar_data(bipolar_raw_data)
             
             return 0
 

@@ -191,6 +191,8 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             current_temp = LFDI_TCB.Controllers[controller_number-1].average
             current_temp = f"{float(current_temp):.2f}"
             filename = f"Hold_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
+            while not os.path.exists(spectrometer.current_image):
+                time.sleep(5)
             os.rename(spectrometer.current_image, f"{folder}/{filename}")
 
         print(f"Finished {temperature}C")
@@ -258,7 +260,7 @@ if __name__ == "__main__":
     #calibrate_camera(spectrometer)
     #calibrate_LED(spectrometer, folder)
 
-    
+    ambient_temperature = 25
     # Cycle through the temperatures
     # SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
     # Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)

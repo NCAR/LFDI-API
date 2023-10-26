@@ -131,10 +131,12 @@ class Spectrometer:
 
 
     #Get a Single Output and save the image, graph, and cross section
-    def single_output(self, image_name_prefix = 'Test'):
-        image_fn = image_name_prefix + '.png'
-        graph_fn = image_name_prefix + '_graph.png'
-        crosssection_fn = image_name_prefix + '.csv'
+    def single_output(self, image_name_prefix = None, show = False):
+        if image_name_prefix == None:
+            image_fn = self.current_image
+            graph_fn = self.current_graph
+            crosssection_fn = self.current_crosssection
+
         self.take_image(image_fn)
 
         fig = plt.figure()
@@ -145,7 +147,8 @@ class Spectrometer:
         self.plot_crosssection(crosssection, ax2)
         fig.savefig(graph_fn)
         np.savetxt(crosssection_fn, crosssection, delimiter=',')
-        plt.show()
+        if show:
+            plt.show()
         return
 
     #Enable auto exposure for the ZWO Camera
