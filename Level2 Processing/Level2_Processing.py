@@ -578,17 +578,26 @@ if __name__ == '__main__':
             
 
     
-    #plot the nearest maxima vs Temperature
+    #plot the nearest maxima vs Temperature only get one scan from each temp and plot the nearest maxima
+
+
+
     nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
     #Get the temperatures for each scan
     temperatures = [scan.temperature for scan in scans]
     
     #Create the plot
     fig, ax = plt.subplots()
+    #do not over lap the data
     ax.plot(temperatures, nearest_maxima, 'o')
+    
     #make it so that each point is marked witht the time it was taken at
-    for i, txt in enumerate([scan.timestamp for scan in scans]):
-        ax.annotate(txt, (temperatures[i], nearest_maxima[i]))
+    #only do this for one point per temperature maxima pair
+    maxima_temp_pairs = []
+    for i in range(len(nearest_maxima)):
+        if (nearest_maxima[i], temperatures[i]) not in maxima_temp_pairs:
+            maxima_temp_pairs.append((nearest_maxima[i], temperatures[i]))
+            ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].time}", fontsize=14, verticalalignment='top')
     
     ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',
         title='Nearest Maxima to H-Alpha (nm) vs Temperature')
