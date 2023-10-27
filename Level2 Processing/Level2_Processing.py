@@ -569,6 +569,7 @@ if __name__ == '__main__':
     #Create a Gif of the Scans that take place between the Temperature range of 25.5C and 26C
     #Filter Scans to only get scans at 3.0V
     scans = filter_scans(scans, temperature = [25.5, 26], prefix = "Hold", sort = "Temperature", only_unique = False)
+    print(len(scans))
     #Create a Gif of the Cross Sections
     crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
     #Create a Gif of the Cross Sections
