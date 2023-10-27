@@ -571,11 +571,6 @@ if __name__ == '__main__':
     scans = filter_scans(scans, temperature = [25.5, 26], prefix = "Hold", sort = "Temperature", only_unique = False)
     print(len(scans))
     #Create a Gif of the Cross Sections
-    crosssections, scans = process_scans(scans, l2_path, generate_graph = True)
-    #Create a Gif of the Cross Sections
-    createGif(crosssections, l2_path, filename = "CrossSections25.5C-26C.gif", delete_files = True)
-    
-            
 
     
     #plot the nearest maxima vs Temperature only get one scan from each temp and plot the nearest maxima
@@ -597,7 +592,7 @@ if __name__ == '__main__':
     for i in range(len(nearest_maxima)):
         if (nearest_maxima[i], temperatures[i]) not in maxima_temp_pairs:
             maxima_temp_pairs.append((nearest_maxima[i], temperatures[i]))
-            ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].time}", fontsize=14, verticalalignment='top')
+            ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
     
     ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',
         title='Nearest Maxima to H-Alpha (nm) vs Temperature')
