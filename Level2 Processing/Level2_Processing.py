@@ -599,6 +599,20 @@ if __name__ == '__main__':
     ax.grid()
     #show the plot
     plt.show()
+    #Ploat the Nearest maxima vs time
+    #Get the times for each scan
+    times = [scan.timestamp for scan in scans]
+    #Create the plot
+    fig, ax = plt.subplots()
+    ax.plot(times, nearest_maxima, 'o')
+    ax.set(xlabel='Time', ylabel='Nearest Maxima to H-Alpha (nm)',
+        title='Nearest Maxima to H-Alpha (nm) vs Time')
+    ax.grid()
+    #show the plot
+    plt.show()
+    
+    
+    
     #Find the RMS of the nearest maxima from all the scans
     maximas = []
     maximas = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
