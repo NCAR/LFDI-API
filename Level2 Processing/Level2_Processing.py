@@ -509,7 +509,7 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-03-25_01-50-48\\"
     scans_path = f"{path}Experiment_2023-03-26_01-05-23\\"
     scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
-    scans_path = f"{path}Experiment_2023-10-25_22-27-16\\"
+    scans_path = f"{path}Experiment_2023-10-27_02-05-39\\"
     
 
     l2_path = makeLevel2Folder(path)
@@ -568,7 +568,7 @@ if __name__ == '__main__':
     #Find how long it takes the the optic to reach thermal equilibrium by looking at the time between scans and the stability of the nearest maxima
     #Create a Gif of the Scans that take place between the Temperature range of 25.5C and 26C
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, temperature = [25.5, 26], prefix = "Hold", sort = "Temperature", only_unique = False)
+    scans = filter_scans(scans, temperature = [26.9, 27.5], prefix = "Hold", sort = "Temperature", only_unique = False)
     print(len(scans))
     #Create a Gif of the Cross Sections
 

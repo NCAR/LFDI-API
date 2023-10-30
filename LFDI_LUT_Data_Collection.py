@@ -260,12 +260,12 @@ if __name__ == "__main__":
     #calibrate_camera(spectrometer)
     #calibrate_LED(spectrometer, folder)
 
-    ambient_temperature = 25
+    ambient_temperature = 27.5
     # Cycle through the temperatures
     # SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
     # Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
     # Run_Endurance_Test(spectrometer=spectrometer, LFDI_TCB=lfdi,tolerance=.5, folder= folder)
-    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(ambient_temperature), end_temp=30, step_temp=.5, tolerance=.25, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder)
+    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(ambient_temperature), end_temp=30, step_temp=.5, tolerance=.05, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder)
 
 
 
