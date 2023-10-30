@@ -6,8 +6,10 @@
 
 
 
-
-import Hardware_API.ZWO as ZWO
+try:
+    import Hardware_API.ZWO as ZWO
+except:
+    import ZWO
 import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
@@ -141,18 +143,19 @@ class Spectrometer:
             crosssection_fn = self.current_crosssection
 
         self.take_image(image_fn)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1, 2, 1)
-        ax2 = fig.add_subplot(1, 2, 2)
-        self.plot_image(image_fn, ax)
-        crosssection = self.get_image_crosssection(image_fn)
-        self.plot_crosssection(crosssection, ax2)
-        fig.savefig(graph_fn)
-        np.savetxt(crosssection_fn, crosssection, delimiter=',')
+        if show:
+            fig = plt.figure()
+            ax = fig.add_subplot(1, 2, 1)
+            ax2 = fig.add_subplot(1, 2, 2)
+        
+            self.plot_image(image_fn, ax)
+            crosssection = self.get_image_crosssection(image_fn)
+            self.plot_crosssection(crosssection, ax2)
+            fig.savefig(graph_fn)
+            np.savetxt(crosssection_fn, crosssection, delimiter=',')
         if show:
             plt.show()
-        fig.clf()
+            fig.clf()
         gc.collect()
         return
 
@@ -177,7 +180,7 @@ if __name__ == '__main__':
     # spec.single_output('Test1')
     #Time How long it take to take an image
     start = time.time()
-    spec.take_image('Test1.png')
+    spec.single_output()
     print(f'Time to take image: {time.time()-start}')
 
 

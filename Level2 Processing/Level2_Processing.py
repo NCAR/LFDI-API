@@ -510,6 +510,8 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-03-26_01-05-23\\"
     scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
     scans_path = f"{path}Experiment_2023-10-27_02-05-39\\"
+    scans_path = f"{path}Experiment_2023-10-30_13-10-56\\"
+    
     
 
     l2_path = makeLevel2Folder(path)
@@ -561,14 +563,14 @@ if __name__ == '__main__':
             pickle.dump(crosssections, f)
     print(len(scans))
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = False, prefix = "Hold", sort = "Temperature", only_unique = False)
+    scans = filter_scans(scans, compensated = False, prefix = "Slew", only_unique = False)
     
     print(len(scans))
     
     #Find how long it takes the the optic to reach thermal equilibrium by looking at the time between scans and the stability of the nearest maxima
     #Create a Gif of the Scans that take place between the Temperature range of 25.5C and 26C
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, temperature = [26.9, 27.5], prefix = "Hold", sort = "Temperature", only_unique = False)
+    #scans = filter_scans(scans, prefix = "Slew", only_unique = False)
     print(len(scans))
     #Create a Gif of the Cross Sections
 
@@ -580,22 +582,22 @@ if __name__ == '__main__':
     nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
     #Get the temperatures for each scan
     temperatures = [scan.temperature for scan in scans]
-    
+    timestamps = [scan.timestamp for scan in scans]
     #Create the plot
     fig, ax = plt.subplots()
     #do not over lap the data
-    ax.plot(temperatures, nearest_maxima, 'o')
+    ax.plot(timestamps, temperatures, 'o')
     
     #make it so that each point is marked witht the time it was taken at
     #only do this for one point per temperature maxima pair
-    maxima_temp_pairs = []
-    for i in range(len(nearest_maxima)):
-        if (nearest_maxima[i], temperatures[i]) not in maxima_temp_pairs:
-            maxima_temp_pairs.append((nearest_maxima[i], temperatures[i]))
-            ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
+    # maxima_temp_pairs = []
+    # for i in range(len(nearest_maxima)):
+    #     if (nearest_maxima[i], temperatures[i]) not in maxima_temp_pairs:
+    #         maxima_temp_pairs.append((nearest_maxima[i], temperatures[i]))
+    #         ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
     
-    ax.set(xlabel='Temperature (C)', ylabel='Nearest Maxima to H-Alpha (nm)',
-        title='Nearest Maxima to H-Alpha (nm) vs Temperature')
+    ax.set(xlabel='Time', ylabel='Temperature (C)',
+        title='Time vs Temperature')
     ax.grid()
     #show the plot
     plt.show()
