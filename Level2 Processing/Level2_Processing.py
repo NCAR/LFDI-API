@@ -595,9 +595,14 @@ if __name__ == '__main__':
     #     if (nearest_maxima[i], temperatures[i]) not in maxima_temp_pairs:
     #         maxima_temp_pairs.append((nearest_maxima[i], temperatures[i]))
     #         ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
-    
+     
     ax.set(xlabel='Time', ylabel='Temperature (C)',
         title='Time vs Temperature')
+    #plot the nearest maxima vs time on the same plot
+    ax2 = ax.twinx()
+    ax2.plot(timestamps, nearest_maxima, 'o', color = "red")
+    ax2.set(ylabel='Nearest Maxima to H-Alpha (nm)')
+    
     ax.grid()
     #show the plot
     plt.show()
