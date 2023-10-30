@@ -6,6 +6,7 @@ import time
 import os
 import sys
 import LFDI_API
+import Spectrograph
 
 # Create a Graph and Continually Update it
 def create_graph():
@@ -33,6 +34,8 @@ def get_temp():
 
 # Create an instance of the LFDI Controller and set the PID values
 if __name__ == "__main__":
+    #Set up the Spectrometer
+    Spectrograph = Spectrograph.Spectrograph()
     LFDI = LFDI_API.LFDI_TCB()
     LFDI.set_controller_kd(1)
     LFDI.set_controller_ki(0)
@@ -51,7 +54,10 @@ if __name__ == "__main__":
             x.append(time.time() - start_time)
             y.append(temp)
             update_graph(fig, ax, x, y)
-            time.sleep(0.1)
+            current_temp = f"{float(temp):.2f}"
+            filename = f"Slew_{str(time.time())}_{LFDI.Compensators[0].voltage}V_{current_temp}C_CompOff_0nm.png"
+            os.rename(Spectrograph.current_image, f"{filename}")
+            time.sleep(1)
         #only keep the last 1000 points
             if len(x) > 1000:
                 x = x[1:]

@@ -175,9 +175,15 @@ if __name__ == '__main__':
     # spec.enable_auto_exposure(False)
     # spec.camera.set_exposure(0.1)
     # spec.single_output('Test1')
-    spec.continuous_output(refresh_rate=1)
-    print("Output With auto Exposure")
-    spec.enable_auto_exposure(True)
-    spec.single_output('Test1')
+    #Time How long it take to take an image
     start = time.time()
-    spec.continuous_output(end_trigger=partial(end_trigger, start))
+    spec.take_image('Test1.png')
+    print(f'Time to take image: {time.time()-start}')
+
+
+    # spec.continuous_output(refresh_rate=1)
+    # print("Output With auto Exposure")
+    # spec.enable_auto_exposure(True)
+    # spec.single_output('Test1')
+    # start = time.time()
+    # spec.continuous_output(end_trigger=partial(end_trigger, start))
