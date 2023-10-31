@@ -586,7 +586,11 @@ if __name__ == '__main__':
     #Create the plot
     fig, ax = plt.subplots()
     #do not over lap the data
-    ax.plot(timestamps, temperatures, 'o')
+    start = timestamps[0]
+    for i in range(len(timestamps)):
+        timestamps[i] = (float(timestamps[i])- float(start))
+
+    line1 = ax.plot(timestamps, temperatures, 'o', label = "Temperature")
     
     #make it so that each point is marked witht the time it was taken at
     #only do this for one point per temperature maxima pair
@@ -596,13 +600,19 @@ if __name__ == '__main__':
     #         maxima_temp_pairs.append((nearest_maxima[i], temperatures[i]))
     #         ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
      
-    ax.set(xlabel='Time', ylabel='Temperature (C)',
+    ax.set(xlabel='Time (s)', ylabel='Temperature (C)',
         title='Time vs Temperature')
     #plot the nearest maxima vs time on the same plot
     ax2 = ax.twinx()
-    ax2.plot(timestamps, nearest_maxima, 'o', color = "red")
+    line2 = ax2.plot(timestamps, nearest_maxima, 'o', color = "red", label = "Wavelength")
     ax2.set(ylabel='Nearest Maxima to H-Alpha (nm)')
+    lines = line1 + line2
+    labels = [l.get_label() for l in lines]
+
+    ax.xaxis.set_major_locator(plt.MaxNLocator(5))
+    ax.legend(lines, labels, loc=0)
     
+    #ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
     ax.grid()
     #show the plot
     plt.show()

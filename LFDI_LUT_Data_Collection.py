@@ -216,9 +216,9 @@ if __name__ == "__main__":
     try:
         lfdi = LFDI.LFDI_TCB("COM6", 9600)
         # Setup Initial PID Values
-        lfdi.set_controller_kd(controller_number=1, kd=1)
+        lfdi.set_controller_kd(controller_number=1, kd=0.75)
         lfdi.set_controller_ki(controller_number=1, ki=0)
-        lfdi.set_controller_kp(controller_number=1, kp=1)
+        lfdi.set_controller_kp(controller_number=1, kp=5)
     # Except if we can't connect to the LFDI_TCB
     except Exception as e:
         print(f"Could not connect to LFDI_TCB On Com6 {e}")
