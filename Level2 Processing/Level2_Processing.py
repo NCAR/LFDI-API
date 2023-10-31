@@ -611,6 +611,34 @@ if __name__ == '__main__':
 
     ax.xaxis.set_major_locator(plt.MaxNLocator(5))
     ax.legend(lines, labels, loc=0)
+    #Go through all the nearest maximas find windows of time where the nearest maxima is stable using < 0.005nm rms as the threshold
+    #Find the RMS of the nearest maxima from all the scans
+    #Sum the squares of the differences from the mean
+    square_diff = 0
+    # Use a window of 10 scans to find the RMS
+    window = 10
+    # Gor through all the Scans and find the RMS in the Window
+    for i in range(len(nearest_maxima)):
+        #If the current scan is within the window
+        if i < window:
+            #Add the square of the difference to the sum
+            square_diff += (nearest_maxima[i] - np.mean(nearest_maxima[0:i+1]))**2
+        else:
+            #Add the square of the difference to the sum
+            square_diff += (nearest_maxima[i] - np.mean(nearest_maxima[i-window:i]))**2
+        #Divide by the number of scans
+        nearest_maxima[i] = square_diff/(i+1)
+        #Take the square root
+        nearest_maxima[i] = np.sqrt(nearest_maxima[i])
+    #Create the plot
+    fig, ax = plt.subplots()
+    ax.plot(timestamps, nearest_maxima, 'o')
+    ax.set(xlabel='Time (s)', ylabel='RMS of Nearest Maxima to H-Alpha (nm)',
+        title='RMS of Nearest Maxima to H-Alpha (nm) vs Time')
+    ax.grid()
+    #show the plot
+    plt.show()
+    
     
     #ax.xaxis.set_major_locator(mdates.MinuteLocator(interval=1))
     ax.grid()
