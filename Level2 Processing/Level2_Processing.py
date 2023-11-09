@@ -511,6 +511,7 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
     scans_path = f"{path}Experiment_2023-10-27_02-05-39\\"
     scans_path = f"{path}Experiment_2023-10-30_13-10-56\\"
+    #scans_path = f"{path}Experiment_2023-10-31_13-09-56\\"
     
     
 
@@ -614,28 +615,28 @@ if __name__ == '__main__':
     #Go through all the nearest maximas find windows of time where the nearest maxima is stable using < 0.005nm rms as the threshold
     #Find the RMS of the nearest maxima from all the scans
     #Sum the squares of the differences from the mean
-    square_diff = 0
-    # Use a window of 10 scans to find the RMS
-    window = 10
-    RMS = []
-    # Gor through all the Scans and find the RMS in the Window
-    # Create a list of the Windowed RMS values
-    for i in range(len(nearest_maxima)):
-        square_diff += (nearest_maxima[i] - mean_nearest_maxima)**2
-        if i >= window:
-            #Divide by the number of scans
-            nearest_maxima = square_diff/window
-            #Take the square root
-            rms = np.sqrt(nearest_maxima)
-            RMS.append(rms)
-            #Reset the square diff
-            square_diff = 0
-    #Plot the RMS vs Time
-    ax3 = ax.twinx()
-    ax3.spines["right"].set_position(("axes", 1.2))
-    ax3.plot(timestamps[window:], RMS, 'o', color = "green", label = "RMS")
-    ax3.set(ylabel='RMS of Nearest Maxima to H-Alpha (nm)')
-    ax3.legend(loc=0)
+    # square_diff = 0
+    # # Use a window of 10 scans to find the RMS
+    # window = 10
+    # RMS = []
+    # # Gor through all the Scans and find the RMS in the Window
+    # # Create a list of the Windowed RMS values
+    # for i in range(len(nearest_maxima)):
+    #     square_diff += (nearest_maxima[i] - mean_nearest_maxima)**2
+    #     if i >= window:
+    #         #Divide by the number of scans
+    #         nearest_maxima = square_diff/window
+    #         #Take the square root
+    #         rms = np.sqrt(nearest_maxima)
+    #         RMS.append(rms)
+    #         #Reset the square diff
+    #         square_diff = 0
+    # #Plot the RMS vs Time
+    # ax3 = ax.twinx()
+    # ax3.spines["right"].set_position(("axes", 1.2))
+    # ax3.plot(timestamps[window:], RMS, 'o', color = "green", label = "RMS")
+    # ax3.set(ylabel='RMS of Nearest Maxima to H-Alpha (nm)')
+    # ax3.legend(loc=0)
     fig, ax = plt.subplots()
     ax.plot(timestamps, nearest_maxima, 'o')
     ax.set(xlabel='Time (s)', ylabel='RMS of Nearest Maxima to H-Alpha (nm)',
