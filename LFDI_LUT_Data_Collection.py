@@ -137,6 +137,7 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
     #Tun on the output for the First Compensator
     
     # Go through the temperatures
+    LFDI_TCB.set_controller_enable(controller_number=controller_number, enable=True)
     for temperature in temperatures:
         # Change to a known state
         LFDI_TCB.set_compensator_voltage(compensator_number, 3)
@@ -145,9 +146,9 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
         
         # Set the temperature
         LFDI_TCB.set_controller_setpoint(controller_number=controller_number, setpoint=temperature)
-        LFDI_TCB.set_controller_enable(controller_number=controller_number, enable=True)
         
-        temporal_resolution = 1*60 # 1 minute
+        
+        temporal_resolution = 10*60 # 10 minute
         #While we are waiting for the TCB to reach the Temperature take an image every Minute
         while not TCB_at_temp(temperature, LFDI_TCB, tolerance):
             # Get the Current time and output the spectrograph for a minute
@@ -160,15 +161,15 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             file.close()
             current_temp = LFDI_TCB.Controllers[controller_number-1].average
             current_temp = f"{float(current_temp):.2f}"
-            filename = f"Slew_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
-            os.rename(spectrometer.current_image, f"{folder}/{filename}")
+            filename = f"{folder}\\Slew_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
+            os.rename(spectrometer.current_image, filename)
         
 
         print(f"Reached {temperature}C")
-        print("Waiting 15 minutes")
+        print("Waiting 30 minutes")
         #Wait For the Crystal to warm through out, Testing Shows for the Epoxied stage this should Take ~ 15 min 
         now = time.time()
-        seconds_to_wait = 900 #wait for 15 min
+        seconds_to_wait = 1800 #wait for 30 min
         while not wait_time(now, seconds_to_wait):
             current_time = time.time()
             spectrometer.continuous_output(refresh_rate=1, end_trigger=partial(wait_time, current_time, temporal_resolution))
@@ -177,8 +178,8 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             file.close()
             current_temp = LFDI_TCB.Controllers[controller_number-1].average
             current_temp = f"{float(current_temp):.2f}"
-            filename = f"Hold_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
-            os.rename(spectrometer.current_image, f"{folder}/{filename}")
+            filename = f"{folder}\\Hold_{str(time.time())}_{LFDI_TCB.Compensators[compensator_number-1].voltage}V_{current_temp}C_CompOff_0nm.png"
+            os.rename(spectrometer.current_image, filename)
 
         print("Finished Waiting")
         print("Cycling through Voltages")
@@ -196,10 +197,10 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
             current_temp = LFDI_TCB.Controllers[controller_number-1].average
             voltage = LFDI_TCB.Compensators[compensator_number-1].voltage
             current_temp = f"{float(current_temp):.2f}"
-            filename = f"Hold_{str(time.time())}_{voltage}V_{current_temp}C_CompOff_0nm.png"
+            filename = f"{folder}\\Hold_{str(time.time())}_{voltage}V_{current_temp}C_CompOff_0nm.png"
             while not os.path.exists(spectrometer.current_image):
                 time.sleep(5)
-            os.rename(spectrometer.current_image, f"{folder}/{filename}")
+            os.rename(spectrometer.current_image, filename)
 
         print(f"Finished {temperature}C")
     print("Finished Temp Cycle")
@@ -207,12 +208,15 @@ def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFD
 
 
 from DataCollection.LFDI_Experiment import make_experiment_folder
-from DataCollection.LFDI_Experiment import calibrate_LED
+from DataCollection.LFDI_Experiment import calibrate_LED, calibrate_camera
 if __name__ == "__main__":
     # Create the Spectrometer
     try:
         spectrometer = Spectrograph.Spectrometer()
         spectrometer.camera.auto_exposure = False
+        spectrometer.camera.set_exposure(.20)
+        spectrometer.camera.set_binning(4)
+        spectrometer.camera.set_gain(300)
 
     except Exception as e:
         print(f"Could not connect to Spectrometer Camera {e}")
@@ -238,15 +242,15 @@ if __name__ == "__main__":
     folder = make_experiment_folder()
     # Calibrate the Spectrometer
     #calibrate_spectrometer(spectrometer, folder)
-    #calibrate_camera(spectrometer)
-    calibrate_LED(spectrometer, folder)
-
     
+    #calibrate_LED(spectrometer, folder)
+    #calibrate_camera(spectrometer)
+    spectrometer.camera.set_exposure(0.05)
     # Cycle through the temperatures
     # SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
     # Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
     # Run_Endurance_Test(spectrometer=spectrometer, LFDI_TCB=lfdi,tolerance=.5, folder= folder)
-    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(beginning_temp), end_temp=30, step_temp=.5, tolerance=.05, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder)
+    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(beginning_temp), end_temp=30, step_temp=.5, tolerance=.25, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder, compensator_number=2)
 
 
 

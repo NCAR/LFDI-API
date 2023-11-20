@@ -101,7 +101,8 @@ def createGif(file_list, save_path, filename = "CorrelationsAt23.1C.gif", delete
 def plotNearestMaximaVsVoltage(scans_path, save_path, filename = "NearestMaximaVsVoltage.png"):
     scans = get_all_scans(scans_path)
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, temperature = [24.8, 25.2], prefix = "Hold", sort = "Voltage")
+    scans = filter_scans(scans, temperature = [25.41, 25.49], prefix = "Hold", sort = "Voltage")
+    print(f"Number of Scans Found: {len(scans)}")
     process_scans(scans, save_path, generate_graph = True)
     #Get the nearest maxima for each scan
     nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima) for scan in scans]
@@ -490,7 +491,7 @@ def process_scans(scans, l2_path, generate_graph = True):
         if generate_graph:
             if not scan.processed:
                 scan.process()
-            scan.save_cross_section(filename,  smooth=True, plot_raw=False, scale = True)
+            scan.save_cross_section(filename,  smooth=True, plot_raw=False, scale = True, Limit_Y = False)
         crosssections.append(filename)
         processed_scans.append(scan)
     
@@ -502,7 +503,7 @@ if __name__ == '__main__':
     gen_compensated = False
     gen_uncompensated = False
     gen_nearest_maxima_v_Temp = False
-    gen_nearest_maxima_v_Voltage = False
+    gen_nearest_maxima_v_Voltage = True
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
     path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
 
@@ -511,6 +512,11 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
     scans_path = f"{path}Experiment_2023-10-27_02-05-39\\"
     scans_path = f"{path}Experiment_2023-10-30_13-10-56\\"
+    scans_path = f"{path}Experiment_2023-11-10_13-28-07\\"
+    scans_path = f"{path}Experiment_2023-11-14_00-50-06\\"
+    scans_path = f"{path}Experiment_2023-11-14_18-10-06\\"
+    
+    
     #scans_path = f"{path}Experiment_2023-10-31_13-09-56\\"
     
     

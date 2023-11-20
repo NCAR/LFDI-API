@@ -395,25 +395,7 @@ def make_experiment_folder():
 
 # This Function will set the camera gain and exposure
 def calibrate_camera(spectrometer):
-    print("Adjust the Camera settings until the image is in focus\r\nClose the Graph when adjusted")
-    spectrometer.continuous_output()
-    
-    #Set the camera gain
-    camera_gain_good = False
-    while not camera_gain_good:
-        camera_gain = input("Enter the Camera Gain (default 600): ")
-        try:
-            camera_gain = int(camera_gain)
-        except ValueError as e:
-            print(f"Value Error {e} Please enter an integer")
-        spectrometer.camera.set_gain(camera_gain)
-        #Show the Spectrograph output for the User to adjust the camera gain
-        spectrometer.continuous_output()
-        #Ask the user if the camera gain is good
-        camera_gain_good = input("Is the Camera Gain Good? (y/n): ")
-        if camera_gain_good == "y":
-            camera_gain_good = True
-    
+    print("Adjust the Camera settings until the image is in focus\r\nClose the Graph to adjust")
 
     #Set the camera exposure
     camera_exposure_good = False
@@ -429,10 +411,10 @@ def calibrate_camera(spectrometer):
 
         spectrometer.camera.set_exposure(camera_exposure)
         # Show the Spectrograph output for the User to adjust the camera exposure
-        spectrometer.continuous_output()
+        spectrometer.single_output(show = True)
         # Ask the user if the camera exposure is good
-        camera_exposure_good = input("Is the Camera Exposure Good? (y/n): ")
-        if camera_exposure_good == "y":
+        response = input("Is the Camera Exposure Good? (y/n): ")
+        if response == "y":
             camera_exposure_good = True
 
     return
@@ -508,7 +490,7 @@ if __name__ == "__main__":
     folder = make_experiment_folder()
     calibrate_camera(spectrometer)
     calibrate_LED(spectrometer, folder)
-
+    #spectrometer.camera.set_exposure(0.005)
     
     #Cycle through the temperatures
     #SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)

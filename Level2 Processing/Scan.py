@@ -85,10 +85,10 @@ class Scan:
         # Return the Cross Section
         return crosssection
         
-    def smooth(self, crosssection):
-        smoothed = savgol_filter(crosssection, 203, 2)
+    def smooth(self, crosssection, peak_distance = 93, frequency = 2/170):
+        smoothed = savgol_filter(crosssection, peak_distance, 2)
         #Use a butter worth filter to smooth the data the 4th order filter with a cutoff of 2/418
-        b, a = signal.butter(4, 2/418, 'low', analog=False)
+        b, a = signal.butter(4, frequency, 'low', analog=False)
         smoothed = signal.filtfilt(b, a, smoothed)
         return smoothed
     
@@ -112,7 +112,7 @@ class Scan:
         plt.plot(crosssection)
         plt.show()
 
-    def save_cross_section(self, filename, smooth=True, plot_raw=False, scale = True):
+    def save_cross_section(self, filename, smooth=True, plot_raw=False, scale = True, Limit_Y = True):
         plt.close()
         plt.figure()
         plt.title(f"{self.prefix} {self.temperature}C {self.voltage}V Compensator {self.compensated} {self.wavelength}nm")
@@ -122,13 +122,15 @@ class Scan:
         #Camera is actually 12 bit, but the camera driver is set to 16 bit; should we scle back to 12 bit?
         
         if scale:
-            plt.ylim(0, 30000/16)
+            if Limit_Y:
+                plt.ylim(0, 30000/16)
             cross_section = self.cross_section/16
             cross_section_smooth = self.smoothed_cross_section/16
         else:
             cross_section_smooth = self.smoothed_cross_section
             cross_section = self.cross_section
-            plt.ylim(0, 30000)
+            if Limit_Y:
+                plt.ylim(0, 30000)
         if plot_raw:
             plt.plot(cross_section, label = "Raw Data")
         if smooth:

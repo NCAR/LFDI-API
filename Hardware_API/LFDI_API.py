@@ -362,8 +362,12 @@ class LFDI_TCB(object):
         
         if print_command:
             print(f"{command}")
-        self.ser.write(f"{command}\r".encode('utf-8'))
-        sleep(.5)
+        try:
+            self.ser.write(f"{command}\r".encode('utf-8'))
+            sleep(.5)
+        except:
+            print("Issue Sending Command")
+
         try:
             val = self.ser.read_all().decode('utf-8', errors = 'ignore')
         except:
