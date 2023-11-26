@@ -503,7 +503,7 @@ if __name__ == '__main__':
     gen_compensated = False
     gen_uncompensated = False
     gen_nearest_maxima_v_Temp = False
-    gen_nearest_maxima_v_Voltage = True
+    gen_nearest_maxima_v_Voltage = False
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
     path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
 
@@ -514,7 +514,8 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-10-30_13-10-56\\"
     scans_path = f"{path}Experiment_2023-11-10_13-28-07\\"
     scans_path = f"{path}Experiment_2023-11-14_00-50-06\\"
-    scans_path = f"{path}Experiment_2023-11-14_18-10-06\\"
+    scans_path = f"{path}Experiment_2023-11-13_03-30-12\\"
+    scans_path = f"{path}Experiment_2023-11-20_11-46-57\\"
     
     
     #scans_path = f"{path}Experiment_2023-10-31_13-09-56\\"

@@ -15,9 +15,9 @@ import pickle
 
 
 
-def ConversionEquation(x):
-    #0.001 nm/px + 653.377 nm
-    return .001*x + 654.377
+def ConversionEquation(x, image_xaxis_size):
+    #0.001 nm/px + 653.377 nm @ max resolution
+    return .001*x*(image_xaxis_size) + 654.377
 
 scanformat = f"[PREFIX]_[TimeStamp]_[Voltage]V_[Temperature]C_Comp[Status]_[Wavelength]nm.png"
 #This is the General Scan Class that will be used to Read in all of the CSVs
@@ -41,12 +41,15 @@ class Scan:
         self.wavelength = float(filename.split("_")[5].split("nm")[0]) #set wavelength to the fifth value in the filename, split by the "_"
         self.compensated = filename.split("_")[4] == "CompOn" #set compensated to the sixth value in the filename, split by the "_"
         
-        
         #Possible data asets
+
         self.cross_section = None
         self.smoothed_cross_section = None
-        self.cross_section_location = 2000
-        self.span = 20
+        self.cross_section_location = 1/2 # Get From the Middle
+        self.span = 0.5 #Percent Coverage of the Final Image. Cover all rows would be 100
+        self.halpha_CrossSection = 0.4087199312714777 #position of Halpha Line. 1 is all the way to the right 0 is all the other way to the left
+        
+        self.image_xaxis = None
         self.nearest_maxima = None
         self.processed = False
         #Git the scan a pickle name based on the scan format
@@ -70,22 +73,26 @@ class Scan:
         # Get the Image
         image = Image.open(os.path.join(parentFolder, self.filename))
         # Get the Cross Section
-        # If Span is greater than 1 then we need to coaverage the Cross Section
-        if span > 1:
-            pixelValues_to_mean= []
-            # Loop through the Cross Section
-            r = round(span/2)
-            for i in range(r):
-                # Get the pixel values
-                pixelValues_to_mean.append(np.array(image)[crosssection-(i), :])
-                pixelValues_to_mean.append(np.array(image)[crosssection+(i), :])
-            crosssection = np.mean(pixelValues_to_mean, axis=0)
+        
+        self.image_xaxis = np.array(image).shape[0]
+        crossSectionPixels = round(np.array(image).shape[0]*crosssection) 
+        #Get the Y Dimension of the image
+        bounds = round(np.array(image).shape[1]*span)
+        pixelValues_to_mean= []
+        
+        # Loop through the Cross Section
+        r = round(bounds/2)
+        for i in range(r):
+            # Get the pixel values
+            pixelValues_to_mean.append(np.array(image)[crossSectionPixels-(i), :])
+            pixelValues_to_mean.append(np.array(image)[crossSectionPixels+(i), :])
+        crosssection = np.mean(pixelValues_to_mean, axis=0)
 
         # Coaverage the Cross Section
         # Return the Cross Section
         return crosssection
         
-    def smooth(self, crosssection, peak_distance = 93, frequency = 2/170):
+    def smooth(self, crosssection, peak_distance = round(93/2), frequency = 6/170):
         smoothed = savgol_filter(crosssection, peak_distance, 2)
         #Use a butter worth filter to smooth the data the 4th order filter with a cutoff of 2/418
         b, a = signal.butter(4, frequency, 'low', analog=False)
@@ -97,9 +104,10 @@ class Scan:
         #Find all the local maximas
         maxima = np.r_[True, smoothed[1:] > smoothed[:-1]] & np.r_[smoothed[:-1] > smoothed[1:], True]
         
-        #Find the maxima closest to 1903 pixels
+        #Find the maxima closest to Halpha pixels
         maxima = np.where(maxima)[0]
-        maxima = maxima[np.abs(maxima-1903).argmin()]
+        halphaPixel = round(len(smoothed)*self.halpha_CrossSection)
+        maxima = maxima[np.abs(maxima-halphaPixel).argmin()]
         
         #return the maxima
         return maxima
@@ -136,18 +144,18 @@ class Scan:
         if smooth:
             #Plot the smooithed data with a thick line
             plt.plot(cross_section_smooth , label = "Smoothed Data", linewidth=3)
-            print(f"Holding Position {ConversionEquation(self.nearest_maxima)}nm")
+            print(f"Holding Position {ConversionEquation(self.nearest_maxima, self.image_xaxis)}nm")
             
             #Plot the maxima with a vertical line
             plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest transmission peak to H-alpha")
             
         
         #plot a vertical line at 1093 pixels
-        plt.axvline(x=1903, color='r', linestyle='--', label = "H-Alpha")
+        plt.axvline(round(x=self.halpha_CrossSection*len(cross_section_smooth)), color='r', linestyle='--', label = "H-Alpha")
         plt.legend()
         #Change the x axis to be in nm only plot 10 ticks only plot to 2 signifigant figures
         
-        plt.xticks(np.linspace(0, len(cross_section), 10), np.round(np.linspace(ConversionEquation(0), ConversionEquation(len(cross_section)), 10), 2))
+        plt.xticks(np.linspace(0, len(cross_section), 10), np.round(np.linspace(ConversionEquation(0, self.image_xaxis), ConversionEquation(len(cross_section), self.image_xaxis), 10), 2))
         #make the plot look nice
         plt.tight_layout()
         #make the plot font larger
