@@ -17,7 +17,7 @@ import pickle
 
 def ConversionEquation(x, image_xaxis_size):
     #0.001 nm/px + 653.377 nm @ max resolution
-    return .001*x*(image_xaxis_size) + 654.377
+    return .001*x*(4656/image_xaxis_size) + 654.377
 
 scanformat = f"[PREFIX]_[TimeStamp]_[Voltage]V_[Temperature]C_Comp[Status]_[Wavelength]nm.png"
 #This is the General Scan Class that will be used to Read in all of the CSVs
@@ -27,7 +27,7 @@ scanformat = f"[PREFIX]_[TimeStamp]_[Voltage]V_[Temperature]C_Comp[Status]_[Wave
 #Temperature should be the Temperature that Scans are taken at
 #Voltage should be the Voltage applied to the optic at the Time
 class Scan:
-    def __init__(self, filename, parentFolder):
+    def __init__(self, filename, parentFolder, stage_size):
         #Set the filename
         
         #Information Pulled from File name
@@ -42,11 +42,14 @@ class Scan:
         self.compensated = filename.split("_")[4] == "CompOn" #set compensated to the sixth value in the filename, split by the "_"
         
         #Possible data asets
-
+        self.stage_size = stage_size
+        
+        self.peak_distance = None # 203*(2.7/stage_size)*(image_size/4656) (Found Peak Distance of the 2.7mm Stage)*(Calcite thickness)
+        self.Filter_Frequncy = None # Cutoff Frequency for the Butterworth Filter used to smooth the data
         self.cross_section = None
         self.smoothed_cross_section = None
-        self.cross_section_location = 1/2 # Get From the Middle
-        self.span = 0.5 #Percent Coverage of the Final Image. Cover all rows would be 100
+        self.cross_section_location = float(1/2) # Get From the Middle
+        self.span = 0.01 #Percent Coverage of the Final Image. Cover all rows would be 100
         self.halpha_CrossSection = 0.4087199312714777 #position of Halpha Line. 1 is all the way to the right 0 is all the other way to the left
         
         self.image_xaxis = None
@@ -58,9 +61,12 @@ class Scan:
 
 
 
-    def process(self):        
+    def process(self):
+        print("Gettting Cross Section")        
         self.cross_section = self.get_CrossSection(self.parentFolder, self.cross_section_location, self.span)
-        self.smoothed_cross_section = self.smooth(self.cross_section)
+        print("Smoothing")
+        self.peak_distance = round(203*(2.7/self.stage_size)*(self.image_xaxis/4656))
+        self.smoothed_cross_section = self.smooth(self.cross_section, peak_distance=self.peak_distance)
         self.nearest_maxima = self.find_maxima(self.parentFolder, self.smoothed_cross_section, self.span)
         self.processed = True
         #Save the Scan as a pickle use the parent folder and the processed pickle name
@@ -74,16 +80,20 @@ class Scan:
         image = Image.open(os.path.join(parentFolder, self.filename))
         # Get the Cross Section
         
-        self.image_xaxis = np.array(image).shape[0]
+        self.image_xaxis = np.array(image).shape[1]
+        print(f"Xaxis {self.image_xaxis}")
         crossSectionPixels = round(np.array(image).shape[0]*crosssection) 
+        
         #Get the Y Dimension of the image
         bounds = round(np.array(image).shape[1]*span)
         pixelValues_to_mean= []
         
         # Loop through the Cross Section
         r = round(bounds/2)
+        print(f"Meaning {r} rows")
         for i in range(r):
             # Get the pixel values
+            
             pixelValues_to_mean.append(np.array(image)[crossSectionPixels-(i), :])
             pixelValues_to_mean.append(np.array(image)[crossSectionPixels+(i), :])
         crosssection = np.mean(pixelValues_to_mean, axis=0)
@@ -92,7 +102,7 @@ class Scan:
         # Return the Cross Section
         return crosssection
         
-    def smooth(self, crosssection, peak_distance = round(93/2), frequency = 6/170):
+    def smooth(self, crosssection, peak_distance = round(48), frequency = .75):
         smoothed = savgol_filter(crosssection, peak_distance, 2)
         #Use a butter worth filter to smooth the data the 4th order filter with a cutoff of 2/418
         b, a = signal.butter(4, frequency, 'low', analog=False)
@@ -151,7 +161,7 @@ class Scan:
             
         
         #plot a vertical line at 1093 pixels
-        plt.axvline(round(x=self.halpha_CrossSection*len(cross_section_smooth)), color='r', linestyle='--', label = "H-Alpha")
+        plt.axvline(x=round(self.halpha_CrossSection*len(cross_section_smooth)), color='r', linestyle='--', label = "H-Alpha")
         plt.legend()
         #Change the x axis to be in nm only plot 10 ticks only plot to 2 signifigant figures
         
