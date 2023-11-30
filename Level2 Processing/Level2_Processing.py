@@ -503,7 +503,7 @@ if __name__ == '__main__':
     gen_compensated = False
     gen_uncompensated = False
     gen_nearest_maxima_v_Temp = False
-    gen_nearest_maxima_v_Voltage = True
+    gen_nearest_maxima_v_Voltage = False
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
     path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
 
@@ -516,12 +516,12 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-11-14_00-50-06\\"
     
     scans_path = f"{path}Experiment_2023-11-20_11-46-57\\" # 5.4mm Look up table data Set
-    # scans_path = f"{path}Experiment_2023-11-17_16-20-49\\" #5.4 mm Temperature Cycle
+    scans_path = f"{path}Experiment_2023-11-17_16-20-49\\" #5.4 mm Temperature Cycle
     stage_size = 5.4
-    scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
-    stage_size = 2.7
-    scans_path = f"{path}Experiment_2023-03-26_04-07-04\\" #2.7 mm LUT Epoxy Old Tuning Control Board
-    stage_size = 2.7
+    # scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
+    # stage_size = 2.7
+    # scans_path = f"{path}Experiment_2023-03-26_04-07-04\\" #2.7 mm LUT Epoxy Old Tuning Control Board
+    # stage_size = 2.7
 
     
     
@@ -625,24 +625,26 @@ if __name__ == '__main__':
     ax.legend(lines, labels, loc=0)
     # Find all the points at which a window of ten points have an RMS Less than 0.05
     #Use a Window to find the RMS of all the Scans
-    window = 10
+    window = 40
     rms = []
     for i in range(len(nearest_maxima)):
         if i < window:
             rms.append(0)
         else:
+            #Find the Mean of this Window
+            mean_nearest_maxima = np.mean(nearest_maxima[i-window:i])
+           
             #Calculate the RMS of the window
             #Sum the squares of the differences from the mean
             square_diff = 0
             for j in range(i - window, i):
                 square_diff += (nearest_maxima[j] - mean_nearest_maxima)**2
             #Divide by the number of scans
-            nearest_maxima = square_diff/window
             #Take the square root
-            rms.append(np.sqrt(nearest_maxima))
+            rms.append(np.sqrt(square_diff/window))
     #Plot the RMS
-    ax3 = ax.twinx()
-    line3 = ax3.plot(timestamps, rms, 'o', color = "green", label = "RMS")
+    # ax3 = ax.twinx()
+    # line3 = ax3.plot(timestamps, rms, 'o', color = "green", label = "RMS")
     fig, ax = plt.subplots()
     ax.plot(timestamps, nearest_maxima, 'o')
     ax.set(xlabel='Time (s)', ylabel='RMS of Nearest Maxima to H-Alpha (nm)',
