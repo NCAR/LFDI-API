@@ -613,7 +613,7 @@ if __name__ == '__main__':
     #         ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
      
     ax.set(xlabel='Time (s)', ylabel='Temperature (C)',
-        title='Time vs Temperature')
+        title='Temperature and Nearest Maxima to H-Alpha (nm) vs Time')
     #plot the nearest maxima vs time on the same plot
     ax2 = ax.twinx()
     line2 = ax2.plot(timestamps, nearest_maxima, 'o', color = "red", label = "Wavelength")
