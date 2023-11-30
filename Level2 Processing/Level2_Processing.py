@@ -613,7 +613,7 @@ if __name__ == '__main__':
     #         ax.text(temperatures[i], nearest_maxima[i], f"{scans[i].timestamp}", fontsize=14, verticalalignment='top')
      
     ax.set(xlabel='Time (s)', ylabel='Temperature (C)',
-        title='Time vs Temperature')
+        title='Temperature and Nearest Maxima to H-Alpha (nm) vs Time')
     #plot the nearest maxima vs time on the same plot
     ax2 = ax.twinx()
     line2 = ax2.plot(timestamps, nearest_maxima, 'o', color = "red", label = "Wavelength")
@@ -641,8 +641,8 @@ if __name__ == '__main__':
             #Take the square root
             rms.append(np.sqrt(nearest_maxima))
     #Plot the RMS
-    ax3 = ax.twinx()
-    line3 = ax3.plot(timestamps, rms, 'o', color = "green", label = "RMS")
+    # ax3 = ax.twinx()
+    # line3 = ax3.plot(timestamps, rms, 'o', color = "green", label = "RMS")
     fig, ax = plt.subplots()
     ax.plot(timestamps, nearest_maxima, 'o')
     ax.set(xlabel='Time (s)', ylabel='RMS of Nearest Maxima to H-Alpha (nm)',
