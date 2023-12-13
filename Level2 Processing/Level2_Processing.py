@@ -154,14 +154,14 @@ def plotNearestMaximaVsVoltage(scans_path, save_path, stage_size, filename = "Ne
 
 
 #Make a diagrom showing the nearest maxima vs voltage for multiple temperatures
-def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperatures, filename = "NearestMaximaVsVoltageMultiTemp.png"):
+def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperatures, filename = "NearestMaximaVsVoltageMultiTemp.png", fix_discontinue= True):
         
     scans = get_all_scans(scans_path, stage_size)
     temperature_sets = []
     for temp in temperatures:
         filtered_scans = filter_scans(scans,compensated = False, temperature = [temp - .2, temp + .2], prefix = "Hold", sort = "Voltage")
         cross_section,processed_scans  = process_scans(filtered_scans, l2_path, generate_graph = True)
-
+        print(f"Length of Filtered Scans {len(filtered_scans)}")
         temperature_sets.append(processed_scans)
         
     print("Done Sorting")
@@ -171,7 +171,11 @@ def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperat
 
     print(len(temperature_sets))
     fig, ax = plt.subplots()
+    colors = ["tab:blue", "tab:orange", "tab:brown", "tab:red"]
+    c = 0
     for scans in temperature_sets:
+    
+        
         print("Temperature: ", scans)
     #Get the nearest maxima for each scan
         for scan in scans:
@@ -179,6 +183,10 @@ def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperat
         nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima,scan.image_xaxis) for scan in scans]
         #Get the voltages for each scan
         voltages = [scan.voltage for scan in scans]
+        if stage_size  == 2.7:
+            fsr = .6
+        if stage_size == 5.4:
+            fsr = .205
         #Create the plot
         #go through the nearest maximas and look for a discontinuity in the data
         #if there is a discontinuity, then add .45nm to all the previous data
@@ -186,18 +194,31 @@ def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperat
         for i in range(len(nearest_maxima)):
             if i == 0:
                 continue
-            if nearest_maxima[i] > .30 + nearest_maxima[i-1]:
+            if nearest_maxima[i] > (fsr-.1) + nearest_maxima[i-1]:
                 for j in range(i):
-                    nearest_maxima[j] += .43
+                    nearest_maxima[j] += fsr
         
-
-        ax.plot(voltages, nearest_maxima, 'o', label = f"{scans[0].temperature} C")
-    ax.set(xlabel='Voltage (V)', ylabel='Tuning Range (nm)',
-        title=f'Tuning Range (nm) vs LCVR Drive Voltage\n for LFDI Single Wide-Fielded Stage ({scans[0].stage_size})')
-    ax.grid()
-    ax.legend()
-    #Save the plot
-    fig.savefig(l2_path + "\\" + filename)
+        middle_plot = [maxima - fsr for maxima in nearest_maxima]
+        lower_plot = [maxima - fsr for maxima in middle_plot]
+        
+        ax.plot(voltages, nearest_maxima, 'o', color= colors[c])
+        ax.plot(voltages, middle_plot,  'o',color= colors[c])
+        ax.plot(voltages, lower_plot,  'o',color=colors[c], label = f"{round(scan.temperature*2)/2}C")
+        c=+1
+        ax.set(xlabel='2kHz LCVR Control Voltage Amplitude [Vpp]', ylabel='Tuning Range (nm)',
+            title=f'Verification of the Achievable Tuning Range\nfor the {scans[0].stage_size}mm LFDI Wide-Fielded Stage at {round(scan.temperature*2)/2}C')
+        ax.grid()
+        #Add a line at the following points
+        #656.28nm
+        #656.08nm
+        #656.48nm
+        ax.axhline(656.28, color = 'violet',linewidth = 3, label = "H-alpha at 656.28")
+        ax.axhline(656.08, color = 'b', linewidth = 2,label = "656.08nm FSR Requirement (Blueward)")
+        ax.axhline(656.48, color = 'r', linewidth = 2,label = "656.48 nm FSR Requirement (Redward)")
+        ax.legend()
+        #Save the plot
+        fig.savefig(l2_path + "\\" + filename)
+        plt.show()
 
 
 
@@ -369,7 +390,11 @@ def filter_scans(scans, **kwargs):
             scans = Scan.get_scans_at_voltage(scans, kwargs["voltage"])
         if "wavelength" in kwargs:
             print("Filtering by wavelength")
-            scans = Scan.get_scans_at_wavelength(scans, kwargs["wavelength"])
+            if "converted" in kwargs:
+                converted = kwargs["converted"]
+            else:
+                converted = True
+            scans = Scan.get_scans_at_wavelength(scans, kwargs["wavelength"], converted)
         if "sort" in kwargs:
             print("Sorting by attribute")
             if "only_unique" in kwargs:
@@ -473,6 +498,30 @@ def get_all_scans(scans_path, stage_size):
                 scans.append(Scan.Scan(File, scans_path, stage_size))
         return scans
 
+#This will produce a graph of the Needed Voltage Vs given temperature for a given Wavelength 
+def generate_Voltage_V_Temperature(scans:list, l2_path, wavelength:float, error = .01):
+    #Find all the Scans that have a nearest maxima of "wavelength"
+    scans = filter_scans(scans, wavelength=[wavelength-error, wavelength+error], converted = True)
+    #Only get the First scan for each Temperature
+    scans = Scan.sort_scans_by_attribute(scans=scans,attribute="Temperature", only_unique=True)
+
+    
+    #Get the temperatures for each scan
+    temperatures = [scan.temperature for scan in scans]
+    #get the voltages of each scan
+    voltages = [scan.voltage for scan in scans]
+    print(temperatures)
+    fig, ax = plt.subplots()
+    
+    ax.plot(temperatures, voltages, 'o', label = "Temperature Vs Voltage Tuning")
+    
+    ax.set(xlabel='Temperature (C)', ylabel='Peak To Peak Voltage (V)',
+        title=f'Voltage V Temperature to tune to {wavelength}nm with a tolerance of +/-{error}nm')
+    #plot the nearest maxima vs time on the same plot
+    ax.grid()
+    plt.show()
+    
+    return
 
 def process_scans(scans, l2_path, generate_graph = True):
     crosssections = []
@@ -503,7 +552,7 @@ if __name__ == '__main__':
     gen_compensated = False
     gen_uncompensated = False
     gen_nearest_maxima_v_Temp = False
-    gen_nearest_maxima_v_Voltage = False
+    gen_nearest_maxima_v_Voltage = True
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
     path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
 
@@ -516,12 +565,14 @@ if __name__ == '__main__':
     scans_path = f"{path}Experiment_2023-11-14_00-50-06\\"
     
     scans_path = f"{path}Experiment_2023-11-20_11-46-57\\" # 5.4mm Look up table data Set
-    scans_path = f"{path}Experiment_2023-11-17_16-20-49\\" #5.4 mm Temperature Cycle
+    #scans_path = f"{path}Experiment_2023-11-17_16-20-49\\" #5.4 mm Temperature Cycle
+    scans_path = f"{path}Experiment_2023-12-04_19-07-10\\" # new Look up table
     stage_size = 5.4
-    # scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
-    # stage_size = 2.7
+    scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
+    stage_size = 2.7
     # scans_path = f"{path}Experiment_2023-03-26_04-07-04\\" #2.7 mm LUT Epoxy Old Tuning Control Board
     # stage_size = 2.7
+
 
     
     
@@ -543,16 +594,16 @@ if __name__ == '__main__':
             plotNearestMaximaVsTemperature(scans_path, l2_path,stage_size=stage_size, voltage = i*.5)
             
 
-    if gen_nearest_maxima_v_Voltage:
+    # if gen_nearest_maxima_v_Voltage:
 
-        plotNearestMaximaVsVoltage(scans_path, l2_path,stage_size=stage_size)
-        Multi_FSR_Plot(scans_path, l2_path,stage_size=stage_size)
+    #     plotNearestMaximaVsVoltage(scans_path, l2_path,stage_size=stage_size)
+    #     Multi_FSR_Plot(scans_path, l2_path,stage_size=stage_size)
 
 
     #Generate a plot of nearest maxima vs Voltage for all temperatures
     if gen_nearest_maxima_v_Voltage:
 
-        temperatures = [23.5, 24.5]
+        temperatures = [25.5, 29.5]
         plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
 
 
@@ -575,8 +626,10 @@ if __name__ == '__main__':
             pickle.dump(crosssections, f)
     print(len(scans))
     #Filter Scans to only get scans at 3.0V
-    scans = filter_scans(scans, compensated = False, prefix = "Slew", only_unique = False)
     
+    #plotNearestMaximaVsVoltage_Diagram(scan)
+    scans = filter_scans(scans, compensated = False, prefix = "Hold", only_unique = False)
+    generate_Voltage_V_Temperature(scans, l2_path, wavelength=656.28, error = 0.001)
     print(len(scans))
     
     #Find how long it takes the the optic to reach thermal equilibrium by looking at the time between scans and the stability of the nearest maxima
@@ -587,7 +640,8 @@ if __name__ == '__main__':
     #Create a Gif of the Cross Sections
 
     
-    #plot the nearest maxima vs Temperature only get one scan from each temp and plot the nearest maxima
+    #plot the nearest maxima vs Temperature only get one scan from each temp
+    #  and plot the nearest maxima
 
 
 
@@ -615,6 +669,7 @@ if __name__ == '__main__':
     ax.set(xlabel='Time (s)', ylabel='Temperature (C)',
         title='Temperature and Nearest Maxima to H-Alpha (nm) vs Time')
     #plot the nearest maxima vs time on the same plot
+    ax.grid()
     ax2 = ax.twinx()
     line2 = ax2.plot(timestamps, nearest_maxima, 'o', color = "red", label = "Wavelength")
     ax2.set(ylabel='Nearest Maxima to H-Alpha (nm)')

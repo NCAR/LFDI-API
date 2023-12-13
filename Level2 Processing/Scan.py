@@ -212,13 +212,16 @@ def get_scans_at_temperature(scans, range: list):
 
 
 #Get all scans at the same Wavelength
-def get_scans_at_wavelength(scans, wavelength):
+def get_scans_at_wavelength(scans, wavelength_range:list, converted=True):
+    print(f"Original leng of scans {len(scans)}")
     #Create a list to hold the scans
     scans_at_wavelength = []
     #Loop through all of the scans
     for scan in scans:
         #Check if the scan is at the right wavelength
-        if scan.wavelength == wavelength:
+        print(f"{wavelength_range[0]}, {wavelength_range[1]}")
+        if (ConversionEquation(scan.nearest_maxima, scan.image_xaxis) >= wavelength_range[0]) and (ConversionEquation(scan.nearest_maxima, scan.image_xaxis) <= wavelength_range[1]):
+            print(ConversionEquation(scan.nearest_maxima, scan.image_xaxis))
             #Add the scan to the list
             scans_at_wavelength.append(scan)
     #Return the list

@@ -36,7 +36,7 @@ from DataCollection.LFDI_Experiment import make_experiment_folder
 if __name__ == "__main__":
     #Set up the Spectrometer
     Spectrograph = Spectrograph.Spectrometer()
-    Spectrograph.camera.set_exposure(.20)
+    Spectrograph.camera.set_exposure(.05)
     Spectrograph.camera.set_binning(4)
     Spectrograph.camera.set_gain(300)
     LFDI = LFDI_API.LFDI_TCB("COM6", 9600)
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     LFDI.set_compensator_voltage(3, 0)
     LFDI.set_compensator_enable(3, True)
     LFDI.set_controller_enable(1, True)
-    Temps = [30, 25]
+    Temps = [25, 30, 25]
     # Create a Graph
     fig, ax = create_graph()
     x = []
@@ -59,7 +59,7 @@ if __name__ == "__main__":
         LFDI.set_compensator_voltage(2, 5.0)
         LFDI.set_controller_setpoint(1, temp)
         #image takes about 4 sec
-        for i in range(0,20):# Go for about 2hrs min
+        for i in range(0,900):# Go for about 1 hr
             try:
                 temp = get_temp()
                 x.append(time.time() - start_time)
