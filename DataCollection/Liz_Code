@@ -15,3 +15,9 @@ TCB.set_compensator_enable(4, True) ## Turns on specific compensator channel, wh
 TCB.set_compensator_voltage(2, 0)  ## sets LCVR voltage to zero
 TCB.set_compensator_voltage(3, 0)  ## sets LCVR voltage to zero
 TCB.set_compensator_voltage(4, 0)  ## sets LCVR voltage to zero
+
+hello
+
+
+
+
