@@ -1,0 +1,17 @@
+import nidaqmx
+import time
+import numpy as np
+import matplotlib.pyplot as pl
+import csv
+import LFDI_API
+
+## Initialize TCB ##
+
+TCB = LFDI_API.LFDI_TCB("COM3",9600)  ## setting up com port to communicate with TCB
+TCB.set_compensator_enable(2, True) ## Turns on specific compensator channel, which is what the LCVR is connected to
+TCB.set_compensator_enable(3, True) ## Turns on specific compensator channel, which is what the LCVR is connected to
+TCB.set_compensator_enable(4, True) ## Turns on specific compensator channel, which is what the LCVR is connected to
+
+TCB.set_compensator_voltage(2, 0)  ## sets LCVR voltage to zero
+TCB.set_compensator_voltage(3, 0)  ## sets LCVR voltage to zero
+TCB.set_compensator_voltage(4, 0)  ## sets LCVR voltage to zero
