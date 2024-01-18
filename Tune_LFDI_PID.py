@@ -56,7 +56,7 @@ if __name__ == "__main__":
     folder = make_experiment_folder()
     # Go through all temps
     for temp in Temps:
-        LFDI.set_compensator_voltage(2, 5.0)
+        LFDI.set_compensator_voltage(4, 5.0)
         LFDI.set_controller_setpoint(1, temp)
         #image takes about 4 sec
         for i in range(0,900):# Go for about 1 hr

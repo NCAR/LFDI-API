@@ -13,6 +13,23 @@ import matplotlib.dates as mdates
 from matplotlib.ticker import MaxNLocator
 import pickle
 
+#Generate a LUT from the wavelength calibration data. 
+#This should be an array of Voltages with the index being the wavelength with the following formula applied 
+#   wavelength = index/1000 + 656.28
+#   @param wavelength_calibration_data: The data to use to generate the LUT
+#   @param stage_size: The stage size of the data
+#   @param save_path: The path to save the LUT to
+def generate_LUT(wavelength_calibration_data, stage_size, save_path):
+    #Create the LUT
+    LUT = [0 for i in range(1000)]
+    #Go through the wavelength calibration data and add the voltage to the LUT
+    for data in wavelength_calibration_data:
+        LUT[int(round((data[0] - 656.28)*1000))] = data[1]
+    #Save the LUT
+    with open(save_path + "\\" + f"LUT_{stage_size}mm.pkl", "wb") as f:
+        pickle.dump(LUT, f)
+    return LUT
+
 def Multi_FSR_Plot(scans_path, save_path, stage_size):
     scans = get_all_scans(scans_path, stage_size)
     #Filter Scans to only get scans at 3.0V
@@ -184,7 +201,7 @@ def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperat
         #Get the voltages for each scan
         voltages = [scan.voltage for scan in scans]
         if stage_size  == 2.7:
-            fsr = .6
+            fsr = .42
         if stage_size == 5.4:
             fsr = .205
         #Create the plot
@@ -219,6 +236,112 @@ def plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size, temperat
         #Save the plot
         fig.savefig(l2_path + "\\" + filename)
         plt.show()
+
+
+#Mark Regions of Delta Wavelength over Delta Voltage and find the linear equation that best matches that region
+##@Brief: This function will plot the nearest maxima vs voltage and Create a Graphical box around different regions of the plot
+#   The user will then be able to select the region that they want to find the linear equation for and the program will find the best fit line for that region
+#@Param scans_path: The path to the scans
+#@Param l2_path: The path to the level 2 folder
+#@Param stage_size: The stage size of the scans
+#@Param temperatures: The temperatures to filter by
+#@Param filename: The name of the file to save the plot as
+#@Param fix_discontinue: If true then the program will fix any discontinuities in the data
+#@Param Voltage_Regions: A list of tuples that represent the regions to find the linear equation for
+#   The tuple should be in the form (start_voltage, end_voltage)
+def plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size, temperatures, filename = "NearestMaximaVsVoltageMultiTemp.png", fix_discontinue= True, Voltage_Regions = [(0, 1.7), (1.7, 5.0), (5.0, 8.0), (8.0, 17)]):
+    #Get all the scans in the scans_path
+    scans = get_all_scans(scans_path, stage_size)
+    #Filter the scans
+    temperature_sets = []
+    for temp in temperatures:
+        filtered_scans = filter_scans(scans,compensated = False, temperature = [temp - .2, temp + .2], prefix = "Hold", sort = "Voltage")
+        cross_section,processed_scans  = process_scans(filtered_scans, l2_path, generate_graph = True)
+        print(f"Length of Filtered Scans {len(filtered_scans)}")
+        temperature_sets.append(processed_scans)
+        
+    print("Done Sorting")
+    print("Saving Cross Sections")
+    
+
+
+    print(len(temperature_sets))
+    fig, ax = plt.subplots()
+    colors = ["tab:blue", "tab:orange", "tab:brown", "tab:red"]
+    c = 0
+    for scans in temperature_sets:
+    
+        
+        print("Temperature: ", scans)
+    #Get the nearest maxima for each scan
+        for scan in scans:
+            print(scan.nearest_maxima)
+        nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima,scan.image_xaxis) for scan in scans]
+        #Get the voltages for each scan
+        voltages = [scan.voltage for scan in scans]
+        if stage_size  == 2.7:
+            fsr = .42
+        if stage_size == 5.4:
+            fsr = .205
+        if stage_size == 10.8:
+            fsr = .09
+        #Create the plot
+        #go through the nearest maximas and look for a discontinuity in the data
+        #if there is a discontinuity, then add .45nm to all the previous data
+        print("Length of nearest maxima: ", len(nearest_maxima))
+        for i in range(len(nearest_maxima)):
+            if i == 0:
+                continue
+
+            #The 10.8 Stage is inverted so the discontinuity is the opposite
+            if stage_size == 10.8:
+                if nearest_maxima[i] < nearest_maxima[i-1] - (fsr*.25):
+                    print("Discontinuity found")
+                    for j in range(i):
+                        nearest_maxima[j] -= fsr
+            else:
+                if nearest_maxima[i] > (fsr*.25) + nearest_maxima[i-1]:
+                    for j in range(i):
+                        nearest_maxima[j] += fsr
+            
+        middle_plot = [maxima - fsr for maxima in nearest_maxima]
+
+        ax.plot(voltages, middle_plot, 'o', color= colors[c])
+        ax.set(xlabel='2kHz LCVR Control Voltage Amplitude [Vpp]', ylabel='Tuning Range (nm)',
+            title=f'Wavelength Vs Voltage Relationship for Tuning Regions\nfor the {scans[0].stage_size}mm LFDI Wide-Fielded Stage at {round(scan.temperature*2)/2}C')
+        ax.grid()
+        #Draw Boxes around the voltage regions make each region a different color
+        n=0
+        #linestiles list
+        linestyles = ["+", "--", "*", "-.", ":", "-"]
+        for region in Voltage_Regions:
+            
+            #Get a uniq Color for the region
+            color = np.random.rand(3,)
+            ax.axvspan(region[0], region[1], alpha=0.5, color=color)
+            #Find the Deta Voltage and Delta Wavelength for the region
+            #Find the index of the start and end voltage
+            start_index = (np.abs(np.array(voltages) - region[0])).argmin()
+            end_index = (np.abs(np.array(voltages) - region[1])).argmin()
+            #Get the voltages and nearest maximas for the region
+            region_voltages = voltages[start_index:end_index]
+            region_nearest_maxima = middle_plot[start_index:end_index]
+            #Fit a line to the data
+            z = np.polyfit(region_voltages, region_nearest_maxima, 1)
+            p = np.poly1d(z)
+            ax.plot(region_voltages,p(region_voltages),f"r{linestyles[n]}", linewidth = 3, label = f"Region {n}: y={z[0]:.3f}x+{z[1]:.2f}")
+            n= n+1
+
+            
+        c=+1
+        #Show the Plot
+        plt.legend()
+        plt.show()
+
+        #Save the plot
+        fig.savefig(l2_path + "\\" + filename)
+        #retrun the maximas vs Voltage data
+        return (voltages, middle_plot)
 
 
 
@@ -523,6 +646,7 @@ def generate_Voltage_V_Temperature(scans:list, l2_path, wavelength:float, error 
     
     return
 
+
 def process_scans(scans, l2_path, generate_graph = True):
     crosssections = []
     processed_scans = []
@@ -568,10 +692,16 @@ if __name__ == '__main__':
     #scans_path = f"{path}Experiment_2023-11-17_16-20-49\\" #5.4 mm Temperature Cycle
     scans_path = f"{path}Experiment_2023-12-04_19-07-10\\" # new Look up table
     stage_size = 5.4
-    scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
-    stage_size = 2.7
+    # scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
+    # stage_size = 2.7
     # scans_path = f"{path}Experiment_2023-03-26_04-07-04\\" #2.7 mm LUT Epoxy Old Tuning Control Board
     # stage_size = 2.7
+    scans_path = f"{path}Experiment_2023-12-17_18-08-49\\" #2.7 mm LUT Epoxy New Tuning Control Board Complete
+    stage_size = 2.7
+    scans_path = f"{path}Experiment_2024-01-11_12-46-57\\" #10.8 mm LUT Epoxy New Tuning Control Board Complete
+    stage_size = 10.8
+
+
 
 
     
@@ -604,8 +734,12 @@ if __name__ == '__main__':
     if gen_nearest_maxima_v_Voltage:
 
         temperatures = [25.5, 29.5]
-        plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
-
+        data = plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
+       
+        #Generatere the Lookup Table
+        LUT_Data = generate_LUT(data[0], data[1], l2_path, stage_size)
+        print(LUT_Data)
+       # plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
 
     scans = get_all_scans(scans_path, stage_size)
     #Check to see if scans have been previously processed in a pickle file

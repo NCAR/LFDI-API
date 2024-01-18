@@ -105,7 +105,7 @@ def wait_time(start, wait_time):
 # This will go through the array of temperatures and the array of Voltages step by step and capture Spectra Output to the Experiment Folder
 def Total_Data_Collection(spectrometer : Spectrograph.Spectrometer,LFDI_TCB: LFDI.LFDI_TCB, start_temp: float, end_temp: float, 
                           step_temp: float, tolerance: float, start_voltage: float, end_voltage: float, 
-                          step_voltage : float, folder, compensator_number = 3, controller_number = 1):
+                          step_voltage : float, folder, compensator_number = 4, controller_number = 1):
     
     
     # print the parameters 
@@ -250,7 +250,7 @@ if __name__ == "__main__":
     # SquareWave_Sweep(spectrometer, lfdi, float(ambient_temperature), 30, .5, start_voltage=0, end_voltage=10, step_voltage=.1, tolerance=0.1, folder=folder)
     # Temp_Compensation(spectrometer, lfdi, float(ambient_temperature), 30, 1, tolerance=0.5, folder=folder)
     # Run_Endurance_Test(spectrometer=spectrometer, LFDI_TCB=lfdi,tolerance=.5, folder= folder)
-    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(beginning_temp), end_temp=30, step_temp=.25, tolerance=.125, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder, compensator_number=2)
+    Total_Data_Collection(spectrometer=spectrometer, LFDI_TCB=lfdi, start_temp=float(beginning_temp), end_temp=30, step_temp=.25, tolerance=.125, start_voltage = 0 , end_voltage = 17.9, step_voltage = .1, folder=folder, compensator_number=4)
 
 
 
