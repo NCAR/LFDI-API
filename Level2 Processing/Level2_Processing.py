@@ -19,14 +19,43 @@ import pickle
 #   @param wavelength_calibration_data: The data to use to generate the LUT
 #   @param stage_size: The stage size of the data
 #   @param save_path: The path to save the LUT to
-def generate_LUT(wavelength_calibration_data, stage_size, save_path):
+def generate_LUT(wavelength, voltage, stage_size, save_path):
     #Create the LUT
     LUT = [0 for i in range(1000)]
     #Go through the wavelength calibration data and add the voltage to the LUT
-    for data in wavelength_calibration_data:
-        LUT[int(round((data[0] - 656.28)*1000))] = data[1]
+    for i in range(len(wavelength)):
+        print(f"Data {wavelength[i]} {voltage[i]}")
+        LUT[int(round((wavelength[i] - 656)*1000))] = voltage[i]
+    print(LUT)
+    input("Press Enter to Continue")
+    first_non_zero = 0
+    
+    for i in range(len(LUT)):
+        #Find the First Non zero, if there are no non zeros then break
+        first_non_zero = LUT.index(next(x for x in LUT[first_non_zero:] if x != 0))
+        # Find the Next Non Zero, if there are no non zeros then break
+        next_non_zero = LUT.index(next((x for x in LUT[first_non_zero+1:] if x != 0), 0))
+        if next_non_zero == LUT.index(0):
+            break
+        #Find the difference in the index between the two non zero values
+        print(f"First Non Zero: {first_non_zero} Next Non Zero: {next_non_zero}")
+        input("Press Enter to Continue")
+        difference = next_non_zero - first_non_zero
+        #Find the difference in the voltage between the two non zero values
+        voltage_difference = LUT[next_non_zero] - LUT[first_non_zero]
+        #Find the slope of the line
+        slope = voltage_difference/difference
+        #Find the y intercept
+        y_intercept = LUT[first_non_zero] - slope*first_non_zero
+        #Go through the LUT and fill in the missing values between the first and next non zero values
+        for i in range(first_non_zero, next_non_zero):
+            LUT[i] = round(slope*i + y_intercept,3)
+        first_non_zero = next_non_zero
+
+    print(LUT)
+    input("Press Enter to Continue")
     #Save the LUT
-    with open(save_path + "\\" + f"LUT_{stage_size}mm.pkl", "wb") as f:
+    with open(f"LUT_108mm.pkl", "wb") as f:
         pickle.dump(LUT, f)
     return LUT
 
@@ -341,7 +370,7 @@ def plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size, tempera
         #Save the plot
         fig.savefig(l2_path + "\\" + filename)
         #retrun the maximas vs Voltage data
-        return (voltages, middle_plot)
+        return middle_plot, voltages
 
 
 
@@ -679,7 +708,9 @@ if __name__ == '__main__':
     gen_nearest_maxima_v_Voltage = True
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
     path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
-
+    
+    path = ".\\"
+    print("Path: ", path)
     scans_path = f"{path}Experiment_2023-03-25_01-50-48\\"
     scans_path = f"{path}Experiment_2023-03-26_01-05-23\\"
     scans_path = f"{path}Experiment_2023-03-26_04-07-04\\"
@@ -690,14 +721,10 @@ if __name__ == '__main__':
     
     scans_path = f"{path}Experiment_2023-11-20_11-46-57\\" # 5.4mm Look up table data Set
     #scans_path = f"{path}Experiment_2023-11-17_16-20-49\\" #5.4 mm Temperature Cycle
-    scans_path = f"{path}Experiment_2023-12-04_19-07-10\\" # new Look up table
-    stage_size = 5.4
-    # scans_path = f"{path}Experiment_2023-11-09_15-53-00\\" #2.7 mm LUT Epoxy New Tuning Control Board
+    # scans_path = f"{path}Experiment_2023-12-04_19-07-10\\" # new Look up table
+    # stage_size = 5.4
+    # scans_path = f"{path}Experiment_2023-12-17_18-08-49\\" #2.7 mm LUT Epoxy New Tuning Control Board Complete
     # stage_size = 2.7
-    # scans_path = f"{path}Experiment_2023-03-26_04-07-04\\" #2.7 mm LUT Epoxy Old Tuning Control Board
-    # stage_size = 2.7
-    scans_path = f"{path}Experiment_2023-12-17_18-08-49\\" #2.7 mm LUT Epoxy New Tuning Control Board Complete
-    stage_size = 2.7
     scans_path = f"{path}Experiment_2024-01-11_12-46-57\\" #10.8 mm LUT Epoxy New Tuning Control Board Complete
     stage_size = 10.8
 
@@ -706,7 +733,7 @@ if __name__ == '__main__':
 
     
     
-
+    print("Making Level 2 Folder")
     l2_path = makeLevel2Folder(path)
     #Generate the Compensated plot
     if gen_compensated:
@@ -734,11 +761,12 @@ if __name__ == '__main__':
     if gen_nearest_maxima_v_Voltage:
 
         temperatures = [25.5, 29.5]
-        data = plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
+        wave, voltage = plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
        
         #Generatere the Lookup Table
-        LUT_Data = generate_LUT(data[0], data[1], l2_path, stage_size)
-        print(LUT_Data)
+        LUT_Data = generate_LUT(wave, voltage, l2_path, stage_size)
+        print(f"To Tune To 656.28 Use one of the Following Voltages {LUT_Data[17]}, {LUT_Data[18]}, {LUT_Data[19]}, {LUT_Data[20]}, {LUT_Data[21]}")
+        input()
        # plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
 
     scans = get_all_scans(scans_path, stage_size)
