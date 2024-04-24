@@ -137,8 +137,8 @@ class Scan:
     def smooth(self, crosssection, peak_distance, frequency = .75):
         smoothed = savgol_filter(crosssection, peak_distance, 2)
         #Use a butter worth filter to smooth the data the 4th order filter with a cutoff of 2/418
-        b, a = signal.butter(4, frequency, 'low', analog=False)
-        smoothed = signal.filtfilt(b, a, smoothed)
+        #b, a = signal.butter(4, frequency, 'low', analog=False)
+       # smoothed = signal.filtfilt(b, a, smoothed)
         return smoothed
     
     #Find the Maxima closest to 1903 pixels
@@ -191,11 +191,11 @@ class Scan:
             plt.plot(cross_section, label = "Raw Data")
         if smooth:
             # Plot the smooithed data with a thick line
-            plt.plot(cross_section_smooth , label = "Smoothed Data", linewidth=3)
+            plt.plot(cross_section_smooth , label = "Smoothed Data", linewidth=3, color = "orange")
             print(f"Holding Position {ConversionEquation(self.nearest_maxima, self.image_xaxis)}nm")
             
             # Plot the maxima with a vertical line
-            plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest transmission peak to H-alpha")
+            #plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest transmission peak to H-alpha")
             
         
         # plot a vertical line at the H-Alpha line

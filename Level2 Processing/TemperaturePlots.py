@@ -36,12 +36,13 @@ def plotNearestMaximaVsTemperature(scans_path, save_path,stage_size, filename = 
     if len(scans) == 0:
         return
     crosssections, scans = process_scans(scans, save_path, generate_graph = True)
-    createGif(crosssections[1:], save_path, filename = "CrossSections", delete_files = True, setFPS = 2)
+    #createGif(crosssections[1:], save_path, filename = "CrossSections", delete_files = True, setFPS = 2)
     #Print the nearest maximas for each scan
     RMS_Calculation(scans)
     for scan in scans:
         #Convert to Wavelength
-        print(Scan.ConversionEquation(scan.nearest_maxima,scan.image_xaxis))
+        print(f"Nearest Maxima pixel: {scan.nearest_maxima}")
+        print(f"Nearest Maxima Wavelength: {Scan.ConversionEquation(scan.nearest_maxima,scan.image_xaxis)}")
     input("Press Enter to Continue")
     # Get the nearest maxima for each scan
     nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima,scan.image_xaxis) for scan in scans]
@@ -69,13 +70,15 @@ def plotNearestMaximaVsTemperature(scans_path, save_path,stage_size, filename = 
     
     
     ax.plot(temperatures, nearest_maxima, 'o')
-    ax.set(xlabel='Temperature (C)', ylabel='Wavelength Offset (nm)',
-        title=f'Wavelength Offset (nm) vs Temperature at LCVR Drive Voltage {scans[0].voltage}V')
+    ax.set(xlabel='Temperature (C)', ylabel='Transmission Wavelength (nm)',
+        title=f'Transmission Wavelength (nm) vs Temperature While Compensating')
     ax.grid()
     # Fit a line to the data
     z = np.polyfit(temperatures, nearest_maxima, 1)
     print(f"y={z[0]}x+{z[1]}")
     p = np.poly1d(z)
+    # add error bars of .005nm to the data
+    ax.errorbar(temperatures, nearest_maxima, yerr = .005, fmt = 'o')
     ax.plot(temperatures,p(temperatures),"r--")
     # Show the linear equation as well as the R^2 value
     ax.text(0.05, 0.95, f"y={z[0]:.2f}x+{z[1]:.2f}", transform=ax.transAxes, fontsize=14, verticalalignment='top')

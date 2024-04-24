@@ -34,8 +34,8 @@ if __name__ == '__main__':
     stage_size = 5.4
     scans_path = f"{path}Experiment_2023-12-17_18-08-49\\" #2.7 mm LUT Epoxy New Tuning Control Board Complete
     stage_size = 2.7
-    scans_path = f"{path}Exp\\" #10.8 mm LUT Epoxy New Tuning Control Board Complete
-    stage_size = 2.7
+    # scans_path = f"{path}Exp\\" #10.8 mm LUT Epoxy New Tuning Control Board Complete
+    # stage_size = 2.7
     # scans_path = f"C:\\Users\\mjeffers\\Desktop\\TempSweep\\Experiment_2024-01-11_12-46-57\\" #10.8 mm LUT Epoxy New Tuning Control Board Complete
     # stage_size = 10.8
     
