@@ -1,3 +1,9 @@
+from Data_Gathering import get_all_scans
+from Scan_Processing import process_scans
+import matplotlib.pyplot as plt
+import numpy as np
+from Scan import filter_scans, ConversionEquation, Scan
+
 # Mark Regions of Delta Wavelength over Delta Voltage and find the linear equation that best matches that region
 # @Brief: This function will plot the nearest maxima vs voltage and Create a Graphical box around different regions of the plot
 #   The user will then be able to select the region that they want to find the linear equation for and the program will find the best fit line for that region
@@ -37,7 +43,7 @@ def plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size, tempera
     # Get the nearest maxima for each scan
         for scan in scans:
             print(scan.nearest_maxima)
-        nearest_maxima = [Scan.ConversionEquation(scan.nearest_maxima,scan.image_xaxis) for scan in scans]
+        nearest_maxima = [ConversionEquation(scan.nearest_maxima,scan.image_xaxis) for scan in scans]
         #Get the voltages for each scan
         voltages = [scan.voltage for scan in scans]
         corrected_Wavelengths = []

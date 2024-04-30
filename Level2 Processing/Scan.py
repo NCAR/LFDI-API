@@ -195,7 +195,7 @@ class Scan:
             print(f"Holding Position {ConversionEquation(self.nearest_maxima, self.image_xaxis)}nm")
             
             # Plot the maxima with a vertical line
-            #plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest transmission peak to H-alpha")
+            plt.axvline(x=self.nearest_maxima, color='r', linestyle=':', label = "Nearest transmission peak to H-alpha")
             
         
         # plot a vertical line at the H-Alpha line

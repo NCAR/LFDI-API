@@ -6,6 +6,7 @@ import pickle
 from Scan_Processing import process_scans
 from Data_Gathering import get_all_scans, makeLevel2Folder 
 from TemperaturePlots import plotNearestMaximaVsTemperature
+from VoltagePlots import plotNearestMaximaVsVoltage_Diagram2
 
 
 
@@ -13,7 +14,7 @@ from TemperaturePlots import plotNearestMaximaVsTemperature
 if __name__ == '__main__':
     gen_compensated = True
     gen_uncompensated = False
-    gen_nearest_maxima_v_Temp = True
+    gen_nearest_maxima_v_Temp = False
     gen_nearest_maxima_v_Voltage = True
     path = "C:\\Users\\mjeffers\\Desktop\\TempSweep\\"
     #path = "C:\\Users\\iguser\\Documents\\GitHub\\LFDI_API\\"
