@@ -13,7 +13,7 @@ from scipy import signal
 import pickle
 
 
-px_per_nm_at_4656 = 924
+px_per_nm_at_4656 = -924
 halpha_px_position_at_4656 = 2128
 halpha_nm_position = 656.28
 
@@ -21,11 +21,11 @@ class Stage:
     def __init__(self, stage_size = 2.7):
         self.stage_size = stage_size
         if stage_size == 2.7:
-            self.fsr = .44
+            self.fsr = -.44
         elif stage_size == 5.4:
-            self.fsr = .22
+            self.fsr = -.22
         elif stage_size == 10.8:
-            self.fsr = .11
+            self.fsr = -.11
 
 
 ############################################################################################################

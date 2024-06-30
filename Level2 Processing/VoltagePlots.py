@@ -62,9 +62,10 @@ def plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size, tempera
                     for j in range(i):
                         nearest_maxima[j] -= scan.stage.fsr
             else:
-                if nearest_maxima[i] > (scan.stage.fsr*.25) + nearest_maxima[i-1]:
+                if nearest_maxima[i] < nearest_maxima[i-1] - (scan.stage.fsr*.25):
                     for j in range(i):
-                        nearest_maxima[j] += scan.stage.fsr +.01215
+                        nearest_maxima[j] -= scan.stage.fsr +.01215
+                        print("adjusting")
             
         middle_plot = [maxima - scan.stage.fsr for maxima in nearest_maxima]
 

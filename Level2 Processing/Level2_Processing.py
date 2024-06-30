@@ -39,6 +39,8 @@ if __name__ == '__main__':
     # stage_size = 2.7
     # scans_path = f"C:\\Users\\mjeffers\\Desktop\\TempSweep\\Experiment_2024-01-11_12-46-57\\" #10.8 mm LUT Epoxy New Tuning Control Board Complete
     # stage_size = 10.8
+    if stage_size == 2.7:
+        fsr = .44
     
     print("Making Level 2 Folder")
     l2_path = makeLevel2Folder(path)
@@ -55,7 +57,7 @@ if __name__ == '__main__':
         wave, voltage = plotNearestMaximaVsVoltage_Diagram2(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)
        
         #Generatere the Lookup Table
-        LUT_Data = generate_LUT(wave, voltage, l2_path, stage_size)
+        LUT_Data = generate_LUT(wave, voltage, fsr)
         print(f"To Tune To 656.28 Use one of the Following Voltages {LUT_Data[17]}, {LUT_Data[18]}, {LUT_Data[19]}, {LUT_Data[20]}, {LUT_Data[21]}")
         input()
        # plotNearestMaximaVsVoltage_Diagram(scans_path, l2_path, stage_size=stage_size,temperatures=temperatures)

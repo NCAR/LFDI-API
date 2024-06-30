@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 #Generate a LUT from the wavelength calibration data. 
 #This should be an array of Voltages with the index being the wavelength with the following formula applied 
 #   wavelength = index/1000 + 656.28
@@ -10,17 +12,52 @@ def generate_LUT(wavelength, voltage, fsr):
     LUT = [0 for i in range(1000)]
     print(f"Voltages: {len(voltage)}")
     print(f"Wavelengths: {len(wavelength)}")
+    print(f"Wavelengths: {wavelength}")
     
-    fill_known_values(wavelength, voltage, LUT)
-    linear_interpolation(LUT)
-    fsr_fill(LUT, fsr)
+    wavelength = fix_wavelength(wavelength, fsr)
+    print(f"Wavelengths: {wavelength}")
+    input()
+    LUT = fill_known_values(wavelength, voltage, LUT)
+    print(f"LUT: {LUT}")
+    input()
+    LUT = linear_interpolation(LUT)
+    print(f"LUT: {LUT}")
+    LUT = fsr_fill(LUT, fsr)
+    print(f"LUT: {LUT}")
+    input()
+    
+
+
     
     # Convert to mV
     for i in range(len(LUT)):
         LUT[i] = int(LUT[i]*1000)
-    
+
+    #Plot the LUT to make sure it looks good
+    plt.plot([i/1000 + 656.28 for i in range(1000)], LUT)
+    plt.xlabel("Wavelength (nm)")
+    plt.ylabel("Voltage (mV)")
+    plt.title("Look Up Table")
+    plt.show()
+    print(LUT)
     return LUT
 
+
+def fix_wavelength(wavelength, fsr):
+    #if the highest wavelength is less than 656 then we need to add the FSR to the wavelength then
+    #add the FSR to the rest of the wavelengths
+    #Find the max wavelength
+    max_wavelength = max(wavelength)
+    # If the max wavelength is less than 656 then we need to add the FSR to the wavelength
+    while max(wavelength) < 656:
+        #Add the FSR to the wavelength
+        for i in range(len(wavelength)):
+            wavelength[i] += fsr
+    while min(wavelength) > 657:
+        #Subtract the FSR from the wavelength
+        for i in range(len(wavelength)):
+            wavelength[i] -= fsr
+    return wavelength
 
 # @Brief this will go through the wavelength and Volatages and fill in the known values in the LUT
 # @Param wavelength: The wavelength calibration data
@@ -75,6 +112,7 @@ def linear_interpolation(LUT):
 # @Param LUT: The LUT to fill
 def fsr_fill(LUT, fsr):
     #Go through the LUT and fill in any remaining zeros using the FSR of the stage
+    fsr = int(fsr*1000)
     for i in range(len(LUT)):
         if LUT[i] == 0:
             try:
