@@ -54,20 +54,27 @@ class Controller(object):
             self.kp = float(data[1].strip(' '))
             self.kd = float(data[2].strip(' '))
             self.ki = float(data[3].strip(' '))
-            self.error_p = float(data[4].strip(' '))
-            self.error_d = float(data[5].strip(' '))
-            self.error_i = float(data[6].strip(' '))
-            self.effort = float(data[7].strip(' '))
-            self.temp = float(data[8].strip(' ').strip('C'))
-            self.average = float(data[9].strip(' ').strip('C'))
+            #self.li = float(data[4].strip(' '))
+            self.error_p = float(data[5].strip(' '))
+            self.error_d = float(data[6].strip(' '))
+            self.error_i = float(data[7].strip(' '))
+            self.effort = float(data[8].strip(' '))
+            #self.current = float(data[9].strip(' '))
+            self.temp = float(data[10].strip(' ').strip('C'))
+            self.average = float(data[11].strip(' ').strip('C'))
+            #self.slew = data[12].strip(' ')
             #bad Way of doing this but will work for now
             try:
-                self.setpoint = float(data[10].strip(' ').strip('C'))
+                self.setpoint = float(data[13].strip(' ').strip('C'))
             except:
-                self.setpoint = data[10]
-            self.i2c = data[11].strip(' ')
-            self.history = float(data[12].strip(' '))
-            self.frequency = float(data[13].strip(' '))
+                self.setpoint = data[13]
+            self.i2c = data[14].strip(' ')
+            self.period = data[15].strip(' ')
+            self.offset = data[16].strip(' ')
+            self.enabled = data[17].strip(' ')
+            self.sensor = data[18].strip(' ')
+            #self.history = float(data[12].strip(' '))
+            #self.frequency = float(data[13].strip(' '))
             self.enabled = data[14].strip(' ')
             self.sensor = data[15].strip(' ')
         except:
@@ -75,13 +82,13 @@ class Controller(object):
         return
 
     def get_kp_command(self, kp:float):
-        return f"p{kp}"
+        return f"kp{kp}"
     def get_ki_command(self, ki:float):
-        return f"i{ki}"
+        return f"ki{ki}"
     def get_kd_command(self, kd:float):
-        return f"d{kd}"
+        return f"kd{kd}"
     def get_setpoint_command(self, setpoint:float):
-        return f"t{setpoint}"
+        return f"tg{setpoint}"
     def get_enable_command(self, enable:bool):
         if enable:
             return "e"
@@ -694,7 +701,6 @@ class LFDI_TCB(object):
     def parse_raw_data(self, raw_data:str):
         try:
             #remove the first row which is the header
-            
             raw_data = raw_data.split("\n")
             
             #Find the line that contains the header of the Controller
