@@ -113,6 +113,7 @@ class Controller(object):
     def get_setpoint_response(self):
         return f"Target temperature set to"
     def get_enable_response(self, enable:bool):
+        return None
         if(enable):
             return f"Controller enabled."
         else:
@@ -357,7 +358,7 @@ class LFDI_TCB(object):
         return
 
     #Sends Command to the Controller
-    def send_command(self, command, print_command =False, expected_response = None, attempts = 0):
+    def send_command(self, command, print_command =True, expected_response = None, attempts = 0):
         if attempts > 3:
             print(f"Too many attempts to send command {command}\nRestarting Connection")
             self.ser.close()
