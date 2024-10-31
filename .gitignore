@@ -11,3 +11,4 @@ ASI SDK/demo/demo2.exe
 *.tsv
 *.pkl
 *.gif
+/.venv
